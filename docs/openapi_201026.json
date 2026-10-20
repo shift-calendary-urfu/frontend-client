@@ -1,0 +1,1682 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Shift calendary. Server",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Create User",
+        "description": "Регистрирует нового пользователя.",
+        "operationId": "create_user_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Login",
+        "description": "Аутентифицирует пользователя и возвращает access_token и refresh_token.",
+        "operationId": "login_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_login_auth_login_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Login Auth Login Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/refresh-token": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Refresh Token",
+        "description": "Обновляет токены (access- и refresh-) при наличии действующего refresh-token.",
+        "operationId": "refresh_token_auth_refresh_token_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Refresh Token Auth Refresh Token Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/me": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Get Info User",
+        "operationId": "get_info_user_users_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Update Info User",
+        "operationId": "update_info_user_users_me_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/users/me/password": {
+      "put": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Update Password User",
+        "operationId": "update_password_user_users_me_password_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserUpdatePassword"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Update Password User Users Me Password Put"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/workplaces/": {
+      "get": {
+        "tags": [
+          "Workplaces"
+        ],
+        "summary": "Get All Workspaces For User",
+        "operationId": "get_all_workspaces_for_user_workplaces__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WorkplaceResponse"
+                  },
+                  "type": "array",
+                  "title": "Response Get All Workspaces For User Workplaces  Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Workplaces"
+        ],
+        "summary": "Create Workplace",
+        "operationId": "create_workplace_workplaces__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkplaceCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkplaceResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/workplaces/{workplace_id}": {
+      "get": {
+        "tags": [
+          "Workplaces"
+        ],
+        "summary": "Get Workplace By Id",
+        "operationId": "get_workplace_by_id_workplaces__workplace_id__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workplace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Workplace Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkplaceWithEmployeesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Workplaces"
+        ],
+        "summary": "Update Workplace",
+        "operationId": "update_workplace_workplaces__workplace_id__put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workplace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Workplace Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkplaceUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkplaceResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Workplaces"
+        ],
+        "summary": "Delete Workplace",
+        "operationId": "delete_workplace_workplaces__workplace_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workplace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Workplace Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Delete Workplace Workplaces  Workplace Id  Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workplaces/{workplace_id}/employees": {
+      "get": {
+        "tags": [
+          "Workplaces"
+        ],
+        "summary": "Get Employees By Workplace",
+        "operationId": "get_employees_by_workplace_workplaces__workplace_id__employees_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workplace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Workplace Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EmployeeResponse"
+                  },
+                  "title": "Response Get Employees By Workplace Workplaces  Workplace Id  Employees Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/employees/": {
+      "post": {
+        "tags": [
+          "Employees"
+        ],
+        "summary": "Create Employee",
+        "description": "Создание нового пользователя в системе или восстановление существующего.\nВозвращает созданного юзера.\nСоздание доступно только владельцу или администратору рабочего пространства.",
+        "operationId": "create_employee_employees__post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workplace_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Workplace Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmployeeCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmployeeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/employees/{employee_id}": {
+      "get": {
+        "tags": [
+          "Employees"
+        ],
+        "summary": "Get Employee",
+        "description": "Получение информации о пользователе по его ID.\nДоступно только владельцу или работнику рабочего пространства.",
+        "operationId": "get_employee_employees__employee_id__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "employee_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Employee Id"
+            }
+          },
+          {
+            "name": "workplace_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Workplace Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmployeeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Employees"
+        ],
+        "summary": "Delete Employee",
+        "description": "Удаляет сотрудника из системы.\nДоступно только владельцу или администратору рабочего пространства.",
+        "operationId": "delete_employee_employees__employee_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "employee_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Employee Id"
+            }
+          },
+          {
+            "name": "workplace_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Workplace Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Delete Employee Employees  Employee Id  Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Employees"
+        ],
+        "summary": "Update Employee",
+        "description": "Обновляет информацию о сотруднике.\nДоступно только владельцу или администратору рабочего пространства.",
+        "operationId": "update_employee_employees__employee_id__put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "employee_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Employee Id"
+            }
+          },
+          {
+            "name": "workplace_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Workplace Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmployeeUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmployeeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "tags": [
+          "Health Check"
+        ],
+        "summary": "Root",
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_login_auth_login_post": {
+        "properties": {
+          "grant_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^password$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grant Type"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "title": "Password"
+          },
+          "scope": {
+            "type": "string",
+            "title": "Scope",
+            "default": ""
+          },
+          "client_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Id"
+          },
+          "client_secret": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "format": "password",
+            "title": "Client Secret"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "Body_login_auth_login_post"
+      },
+      "EmployeeCreate": {
+        "properties": {
+          "phone": {
+            "type": "string",
+            "pattern": "^(\\+7\\d{10}|8\\d{10})$",
+            "title": "Phone",
+            "description": "Телефон сотрудника (формат: +7XXXXXXXXXX, 8XXXXXXXXXX)"
+          },
+          "role": {
+            "type": "string",
+            "pattern": "^(owner|admin|employee)$",
+            "title": "Role",
+            "description": "Роль сотрудника ('owner', 'admin', 'employee')"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position",
+            "description": "Должность сотрудника"
+          }
+        },
+        "type": "object",
+        "required": [
+          "phone",
+          "role"
+        ],
+        "title": "EmployeeCreate"
+      },
+      "EmployeeResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "ID сотрудника"
+          },
+          "user_id": {
+            "type": "integer",
+            "title": "User Id",
+            "description": "ID пользователя"
+          },
+          "workplace_id": {
+            "type": "integer",
+            "title": "Workplace Id",
+            "description": "ID рабочего пространства"
+          },
+          "role": {
+            "type": "string",
+            "pattern": "^(owner|admin|employee)$",
+            "title": "Role",
+            "description": "Роль сотрудника ('owner', 'admin', 'employee')"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position",
+            "description": "Должность сотрудника"
+          },
+          "hire_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hire Date",
+            "description": "Дата найма сотрудника"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "description": "Статус активности сотрудника"
+          },
+          "user": {
+            "$ref": "#/components/schemas/EmployeeUserResponse",
+            "description": "Информация о пользователе (имя, фамилия, отчество)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "user_id",
+          "workplace_id",
+          "role",
+          "is_active",
+          "user"
+        ],
+        "title": "EmployeeResponse"
+      },
+      "EmployeeUpdate": {
+        "properties": {
+          "role": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(owner|admin|employee)$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role",
+            "description": "Роль сотрудника ('admin', 'employee')"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position",
+            "description": "Должность сотрудника"
+          }
+        },
+        "type": "object",
+        "title": "EmployeeUpdate"
+      },
+      "EmployeeUserResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "ID пользователя"
+          },
+          "first_name": {
+            "type": "string",
+            "title": "First Name",
+            "description": "Имя пользователя"
+          },
+          "second_name": {
+            "type": "string",
+            "title": "Second Name",
+            "description": "Фамилия пользователя"
+          },
+          "third_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Third Name",
+            "description": "Отчество пользователя"
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone",
+            "description": "Телефон пользователя"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "first_name",
+          "second_name",
+          "phone"
+        ],
+        "title": "EmployeeUserResponse"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "RefreshTokenRequest": {
+        "properties": {
+          "refresh_token": {
+            "type": "string",
+            "title": "Refresh Token",
+            "description": "Refresh token для продления сессии"
+          }
+        },
+        "type": "object",
+        "required": [
+          "refresh_token"
+        ],
+        "title": "RefreshTokenRequest"
+      },
+      "UserCreate": {
+        "properties": {
+          "first_name": {
+            "type": "string",
+            "title": "First Name",
+            "description": "Имя пользователя"
+          },
+          "second_name": {
+            "type": "string",
+            "title": "Second Name",
+            "description": "Фамилия пользователя"
+          },
+          "third_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Third Name",
+            "description": "Отчество пользователя"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email",
+            "description": "Email пользователя"
+          },
+          "phone": {
+            "type": "string",
+            "pattern": "^(\\+7\\d{10}|8\\d{10})$",
+            "title": "Phone",
+            "description": "Телефон пользователя в формате +7XXXXXXXXXX или 8XXXXXXXXXX"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "format": "password",
+            "title": "Password",
+            "description": "Пароль (минимум 8 символов)",
+            "writeOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "first_name",
+          "second_name",
+          "email",
+          "phone",
+          "password"
+        ],
+        "title": "UserCreate"
+      },
+      "UserResponse": {
+        "properties": {
+          "first_name": {
+            "type": "string",
+            "title": "First Name",
+            "description": "Имя пользователя"
+          },
+          "second_name": {
+            "type": "string",
+            "title": "Second Name",
+            "description": "Фамилия пользователя"
+          },
+          "third_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Third Name",
+            "description": "Отчество пользователя"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email",
+            "description": "Email пользователя"
+          },
+          "phone": {
+            "type": "string",
+            "pattern": "^(\\+7\\d{10}|8\\d{10})$",
+            "title": "Phone",
+            "description": "Телефон пользователя в формате +7XXXXXXXXXX или 8XXXXXXXXXX"
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "description": "Существует ли пользователь"
+          }
+        },
+        "type": "object",
+        "required": [
+          "first_name",
+          "second_name",
+          "email",
+          "phone",
+          "id",
+          "is_active"
+        ],
+        "title": "UserResponse"
+      },
+      "UserUpdate": {
+        "properties": {
+          "first_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Name",
+            "description": "Имя пользователя"
+          },
+          "second_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Second Name",
+            "description": "Фамилия пользователя"
+          },
+          "third_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Third Name",
+            "description": "Отчество пользователя"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "email"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email",
+            "description": "Email пользователя"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(\\+7\\d{10}|8\\d{10})$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone",
+            "description": "Телефон пользователя в формате +7XXXXXXXXXX или 8XXXXXXXXXX"
+          }
+        },
+        "type": "object",
+        "title": "UserUpdate"
+      },
+      "UserUpdatePassword": {
+        "properties": {
+          "new_password": {
+            "type": "string",
+            "minLength": 8,
+            "format": "password",
+            "title": "New Password",
+            "description": "Новый пароль (минимум 8 символов)",
+            "writeOnly": true
+          },
+          "old_password": {
+            "type": "string",
+            "minLength": 8,
+            "format": "password",
+            "title": "Old Password",
+            "description": "Старый пароль (минимум 8 символов)",
+            "writeOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "new_password",
+          "old_password"
+        ],
+        "title": "UserUpdatePassword"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "WorkplaceCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Name",
+            "description": "Название рабочего пространства"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address",
+            "description": "Адрес"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone",
+            "description": "Контактный телефон"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Описание"
+          },
+          "workplace_type": {
+            "type": "string",
+            "maxLength": 50,
+            "title": "Workplace Type",
+            "description": "Тип (например, 'ozon', 'wildberries', 'yandex_market', 'other')"
+          },
+          "work_start_time": {
+            "type": "string",
+            "format": "time",
+            "title": "Work Start Time",
+            "description": "Время начала работы (HH:MM)",
+            "example": "09:00"
+          },
+          "work_end_time": {
+            "type": "string",
+            "format": "time",
+            "title": "Work End Time",
+            "description": "Время окончания работы (HH:MM)",
+            "example": "21:00"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "address",
+          "workplace_type",
+          "work_start_time",
+          "work_end_time"
+        ],
+        "title": "WorkplaceCreate"
+      },
+      "WorkplaceResponse": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Name",
+            "description": "Название рабочего пространства"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address",
+            "description": "Адрес"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone",
+            "description": "Контактный телефон"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Описание"
+          },
+          "workplace_type": {
+            "type": "string",
+            "maxLength": 50,
+            "title": "Workplace Type",
+            "description": "Тип (например, 'ozon', 'wildberries', 'yandex_market', 'other')"
+          },
+          "work_start_time": {
+            "type": "string",
+            "format": "time",
+            "title": "Work Start Time",
+            "description": "Время начала работы (HH:MM)",
+            "example": "09:00"
+          },
+          "work_end_time": {
+            "type": "string",
+            "format": "time",
+            "title": "Work End Time",
+            "description": "Время окончания работы (HH:MM)",
+            "example": "21:00"
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "ID рабочего пространства"
+          },
+          "owner_id": {
+            "type": "integer",
+            "title": "Owner Id",
+            "description": "ID владельца рабочего пространства"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "address",
+          "workplace_type",
+          "work_start_time",
+          "work_end_time",
+          "id",
+          "owner_id"
+        ],
+        "title": "WorkplaceResponse"
+      },
+      "WorkplaceUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "Название рабочего пространства"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address",
+            "description": "Адрес"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone",
+            "description": "Контактный телефон"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Описание"
+          },
+          "workplace_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workplace Type",
+            "description": "Тип (например, 'ozon', 'wildberries', 'yandex_market', 'other')"
+          },
+          "work_start_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "type": "string",
+            "format": "time",
+            "title": "Work Start Time",
+            "description": "Время начала работы (HH:MM)",
+            "example": "09:00"
+          },
+          "work_end_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "type": "string",
+            "format": "time",
+            "title": "Work End Time",
+            "description": "Время окончания работы (HH:MM)",
+            "example": "21:00"
+          }
+        },
+        "type": "object",
+        "title": "WorkplaceUpdate"
+      },
+      "WorkplaceWithEmployeesResponse": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Name",
+            "description": "Название рабочего пространства"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address",
+            "description": "Адрес"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone",
+            "description": "Контактный телефон"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Описание"
+          },
+          "workplace_type": {
+            "type": "string",
+            "maxLength": 50,
+            "title": "Workplace Type",
+            "description": "Тип (например, 'ozon', 'wildberries', 'yandex_market', 'other')"
+          },
+          "work_start_time": {
+            "type": "string",
+            "format": "time",
+            "title": "Work Start Time",
+            "description": "Время начала работы (HH:MM)",
+            "example": "09:00"
+          },
+          "work_end_time": {
+            "type": "string",
+            "format": "time",
+            "title": "Work End Time",
+            "description": "Время окончания работы (HH:MM)",
+            "example": "21:00"
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "ID рабочего пространства"
+          },
+          "owner_id": {
+            "type": "integer",
+            "title": "Owner Id",
+            "description": "ID владельца рабочего пространства"
+          },
+          "employees": {
+            "items": {
+              "$ref": "#/components/schemas/EmployeeResponse"
+            },
+            "type": "array",
+            "title": "Employees",
+            "description": "Список сотрудников рабочего пространства"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "address",
+          "workplace_type",
+          "work_start_time",
+          "work_end_time",
+          "id",
+          "owner_id",
+          "employees"
+        ],
+        "title": "WorkplaceWithEmployeesResponse"
+      }
+    },
+    "securitySchemes": {
+      "OAuth2PasswordBearer": {
+        "type": "oauth2",
+        "flows": {
+          "password": {
+            "scopes": {
+
+            },
+            "tokenUrl": "auth/login"
+          }
+        }
+      }
+    }
+  }
+}
