@@ -17,12 +17,8 @@ import {
 } from "./api";
 import "./style.css";
 import { Field, Notice, BottomNav, LegalLinks } from "./ui";
-import {
-  Workplaces,
-  WorkplaceDetail,
-  WorkplaceEditor,
-  Employees,
-} from "./management";
+import { Workplaces, WorkplaceDetail, WorkplaceEditor } from "./management";
+import { Employees, EmployeeEditor } from "./employees";
 const empty: ProfileInput = {
   first_name: "",
   second_name: "",
@@ -80,7 +76,7 @@ function Login() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  if (hasSession()) return <Navigate to="/settings" replace />;
+  if (hasSession()) return <Navigate to="/workplaces" replace />;
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (busy) return;
@@ -88,7 +84,7 @@ function Login() {
     setError("");
     try {
       await api.login(email.trim(), password);
-      navigate("/settings", { replace: true });
+      navigate("/workplaces", { replace: true });
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -149,7 +145,7 @@ function Register() {
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  if (hasSession()) return <Navigate to="/settings" replace />;
+  if (hasSession()) return <Navigate to="/workplaces" replace />;
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (busy) return;
@@ -421,7 +417,10 @@ function Settings() {
 }
 function ProtectedLayout() {
   const { pathname } = useLocation();
-  const editor = /^\/workplaces\/(new|[1-9]\d*\/edit)$/.test(pathname);
+  const editor =
+    /^\/workplaces\/(new|[1-9]\d*\/(edit|employees\/(new|[1-9]\d*\/edit)))$/.test(
+      pathname,
+    );
   return hasSession() ? (
     <>
       <Outlet />
@@ -446,11 +445,19 @@ export function App() {
           element={<WorkplaceEditor key="edit" />}
         />
         <Route path="/employees" element={<Employees />} />
+        <Route
+          path="/workplaces/:workplaceId/employees/new"
+          element={<EmployeeEditor />}
+        />
+        <Route
+          path="/workplaces/:workplaceId/employees/:employeeId/edit"
+          element={<EmployeeEditor />}
+        />
       </Route>
       <Route
         path="*"
         element={
-          <Navigate to={hasSession() ? "/settings" : "/login"} replace />
+          <Navigate to={hasSession() ? "/workplaces" : "/login"} replace />
         }
       />
     </Routes>

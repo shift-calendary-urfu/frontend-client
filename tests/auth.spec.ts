@@ -27,6 +27,7 @@ async function mock(page: Page) {
     }
     if (path.endsWith("/auth/refresh-token"))
       return route.fulfill({ status: 201, json: tokens });
+    if (path.endsWith("/workplaces/")) return route.fulfill({ json: [] });
     if (path.endsWith("/users/me")) {
       expect(route.request().headers().authorization).toBe("Bearer access");
       return route.fulfill({
@@ -47,11 +48,19 @@ async function mock(page: Page) {
     });
   });
 }
-async function login(page: Page) {
+async function loginAndOpenSettings(page: Page) {
   await page.goto("/login");
   await page.getByLabel("Email", { exact: true }).fill(profile.email);
   await page.getByLabel("Пароль", { exact: true }).fill("Password123");
   await page.getByRole("button", { name: "Войти", exact: true }).click();
+  await expect(page).toHaveURL("/workplaces");
+  await expect(
+    page.getByRole("heading", { name: "Список ПВЗ", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("navigation")
+    .getByRole("link", { name: "Настройки", exact: true })
+    .click();
   await expect(page).toHaveURL("/settings");
   await expect(page.getByLabel("Имя", { exact: true })).toHaveValue("Иван");
 }
@@ -63,7 +72,7 @@ test("защита настроек и неизвестного адреса", a
 });
 test("вход, профиль, сохранение, перезагрузка и выход", async ({ page }) => {
   await mock(page);
-  await login(page);
+  await loginAndOpenSettings(page);
   await expect(page.getByRole("checkbox")).toBeDisabled();
   await page.getByLabel("Имя", { exact: true }).fill("Пётр");
   await page.getByRole("button", { name: "Сохранить", exact: true }).click();
@@ -142,7 +151,7 @@ test("смена пароля и повторный вход после изме
   page,
 }) => {
   await mock(page);
-  await login(page);
+  await loginAndOpenSettings(page);
   await page
     .getByRole("button", { name: "Изменить пароль", exact: true })
     .click();
@@ -171,8 +180,8 @@ test("обновление access token и истечение refresh token", as
       ? route.fulfill({ status: 401, json: { detail: "expired" } })
       : route.fulfill({ json: profile }),
   );
-  await login(page);
-  expect(count).toBe(2);
+  await loginAndOpenSettings(page);
+  expect(count).toBe(3);
   await page.route("**/backend/auth/refresh-token", (route) =>
     route.fulfill({ status: 401, json: { detail: "expired" } }),
   );
@@ -187,7 +196,7 @@ test("ошибка загрузки с повтором и отсутствие 
   page,
 }) => {
   await mock(page);
-  await login(page);
+  await loginAndOpenSettings(page);
   await page.route("**/backend/users/me", (route) => route.abort());
   await page.reload();
   await expect(page.getByRole("alert")).toContainText("Не удалось связаться");

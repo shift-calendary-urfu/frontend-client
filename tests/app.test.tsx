@@ -1,6 +1,12 @@
 import React from "react";
 import { beforeEach, afterEach, test, expect, vi } from "vitest";
-import { render, screen, cleanup, waitFor } from "@testing-library/react";
+import {
+  render,
+  screen,
+  cleanup,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { App } from "../src/App";
@@ -33,6 +39,7 @@ beforeEach(() => {
     if (url.endsWith("/auth/login") || url.endsWith("/auth/refresh-token"))
       return response(tokens);
     if (url.endsWith("/auth/register")) return response(profile, 201);
+    if (url.endsWith("/workplaces/")) return response([]);
     if (url.endsWith("/users/me/password"))
       return response({ message: "Password updated" });
     if (url.endsWith("/users/me"))
@@ -58,22 +65,36 @@ function start(path: string) {
   );
   return userEvent.setup();
 }
-async function login() {
+async function loginAndOpenSettings() {
   const user = start("/login");
   await user.type(screen.getByLabelText("Email"), profile.email);
   await user.type(screen.getByLabelText("Пароль"), "Password123");
   await user.click(screen.getByRole("button", { name: "Войти", exact: true }));
+  await screen.findByRole("heading", { name: "Список ПВЗ" });
+  await user.click(
+    within(screen.getByRole("navigation")).getByRole("link", {
+      name: "Настройки",
+      exact: true,
+    }),
+  );
   await screen.findByRole("heading", { name: "Настройки" });
   await screen.findByDisplayValue("Иван");
   return user;
 }
-test("settings защищены, вход передаёт form-urlencoded и открывает профиль", async () => {
+test("settings защищены, вход передаёт form-urlencoded и открывает список ПВЗ", async () => {
   const user = start("/settings");
   expect(screen.getByRole("heading").textContent).toContain("Войдите");
   await user.type(screen.getByLabelText("Email"), profile.email);
   await user.type(screen.getByLabelText("Пароль"), "Password123");
   await user.click(screen.getByRole("button", { name: "Войти", exact: true }));
-  await screen.findByDisplayValue("Иван");
+  await screen.findByRole("heading", { name: "Список ПВЗ" });
+  const nav = within(screen.getByRole("navigation"));
+  expect(
+    nav
+      .getByRole("link", { name: "ПВЗ", exact: true })
+      .getAttribute("aria-current"),
+  ).toBe("page");
+  expect(screen.queryByRole("heading", { name: "Настройки" })).toBeNull();
   const init = fetchMock.mock.calls.find(([url]) =>
     url.endsWith("/auth/login"),
   )![1];
@@ -81,12 +102,14 @@ test("settings защищены, вход передаёт form-urlencoded и о
     "application/x-www-form-urlencoded",
   );
   expect(init.body.get("username")).toBe(profile.email);
+  await user.click(nav.getByRole("link", { name: "Настройки", exact: true }));
+  await screen.findByDisplayValue("Иван");
   expect((screen.getByRole("checkbox") as HTMLInputElement).disabled).toBe(
     true,
   );
 });
 test("сохранение профиля отправляет только поля модели; выход закрывает настройки", async () => {
-  const user = await login();
+  const user = await loginAndOpenSettings();
   await user.clear(screen.getByLabelText("Имя"));
   await user.type(screen.getByLabelText("Имя"), "Пётр");
   await user.click(
@@ -129,7 +152,7 @@ test("регистрация проверяет подтверждение и п
   expect(JSON.parse(fetchMock.mock.calls[0][1].body).third_name).toBe(null);
 });
 test("смена email требует нового входа", async () => {
-  const user = await login();
+  const user = await loginAndOpenSettings();
   await user.clear(screen.getByLabelText("Email"));
   await user.type(screen.getByLabelText("Email"), "new@example.com");
   await user.click(
@@ -139,7 +162,7 @@ test("смена email требует нового входа", async () => {
   expect(hasSession()).toBe(false);
 });
 test("смена пароля отправляет old_password и new_password", async () => {
-  const user = await login();
+  const user = await loginAndOpenSettings();
   await user.click(screen.getByRole("button", { name: "Изменить пароль" }));
   await user.type(screen.getByLabelText("Текущий пароль"), "Password123");
   await user.type(

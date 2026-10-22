@@ -26,15 +26,25 @@ export type Employee = {
   user_id: number;
   workplace_id: number;
   role: "owner" | "admin" | "employee";
-  position: string | null;
-  hire_date: string | null;
+  position?: string | null;
+  hire_date?: string | null;
   is_active: boolean;
   user: {
     id: number;
     first_name: string;
     second_name: string;
-    third_name: string | null;
+    third_name?: string | null;
+    phone: string;
   };
+};
+export type EmployeeCreate = {
+  phone: string;
+  role: Employee["role"];
+  position?: string | null;
+};
+export type EmployeeUpdate = {
+  role?: Employee["role"];
+  position?: string | null;
 };
 export type WorkplaceDetailData = Workplace & { employees: Employee[] };
 type Tokens = {
@@ -93,6 +103,9 @@ const labels: Record<string, string> = {
   workplace_type: "Маркетплейс",
   work_start_time: "Начало работы",
   work_end_time: "Конец работы",
+  role: "Уровень доступа",
+  position: "Должность",
+  workplace_id: "ПВЗ",
 };
 async function parse(response: Response) {
   const data = await response.json().catch(() => null);
@@ -112,6 +125,20 @@ async function parse(response: Response) {
       message = data.detail;
     if (response.status === 403) message = "Нет доступа к этому действию.";
     if (response.status === 404) message = "Данные не найдены или уже удалены.";
+    if (
+      response.status === 404 &&
+      data?.detail === "User with this phone number not found"
+    )
+      message =
+        "Пользователь с таким телефоном не найден. Сначала сотруднику нужно зарегистрироваться в сервисе. Проверьте, что телефон совпадает с указанным при регистрации.";
+    if (
+      response.status === 409 &&
+      data?.detail === "Employee already exists in this workplace"
+    )
+      message = "Этот сотрудник уже добавлен в выбранный ПВЗ.";
+    if (response.status === 404 && data?.detail === "Employee not found")
+      message =
+        "Сотрудник не найден в этом ПВЗ или уже удалён. Обновите список сотрудников.";
     if (data?.detail === "Workplace with this address and type already exists.")
       message = "ПВЗ с таким адресом и маркетплейсом уже существует.";
     if (data?.detail === "Current password is not matching.")
@@ -227,5 +254,26 @@ export const api = {
       request(`/workplaces/${id}`, "DELETE"),
     employees: (id: number): Promise<Employee[]> =>
       request(`/workplaces/${id}/employees`),
+  },
+  employees: {
+    create: (workplaceId: number, data: EmployeeCreate): Promise<Employee> =>
+      request(`/employees/?workplace_id=${workplaceId}`, "POST", data),
+    get: (workplaceId: number, employeeId: number): Promise<Employee> =>
+      request(`/employees/${employeeId}?workplace_id=${workplaceId}`),
+    update: (
+      workplaceId: number,
+      employeeId: number,
+      data: EmployeeUpdate,
+    ): Promise<Employee> =>
+      request(
+        `/employees/${employeeId}?workplace_id=${workplaceId}`,
+        "PUT",
+        data,
+      ),
+    remove: (
+      workplaceId: number,
+      employeeId: number,
+    ): Promise<{ message: string }> =>
+      request(`/employees/${employeeId}?workplace_id=${workplaceId}`, "DELETE"),
   },
 };
