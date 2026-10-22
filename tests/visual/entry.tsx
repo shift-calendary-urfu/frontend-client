@@ -59,6 +59,7 @@ const employees = [
     user: {
       id: 3,
       first_name: "Никита",
+      phone: "+79990000003",
       second_name: "Изюмов",
       third_name: null,
     },
@@ -74,6 +75,7 @@ const employees = [
     user: {
       id: 1,
       first_name: "Павел",
+      phone: profile.phone,
       second_name: "Ивачёв",
       third_name: null,
     },
@@ -89,6 +91,7 @@ const employees = [
     user: {
       id: 4,
       first_name: "Дмитрий",
+      phone: "+79990000004",
       second_name: "Киверин",
       third_name: null,
     },
@@ -106,8 +109,19 @@ window.fetch = async (input, init) => {
     };
   else if (url.endsWith("/users/me")) data = profile;
   else if (url.endsWith("/workplaces/")) data = points;
-  else if (/\/workplaces\/\d+\/employees$/.test(url)) data = employees;
-  else if (/\/workplaces\/\d+$/.test(url))
+  else if (/\/workplaces\/\d+\/employees$/.test(url))
+    data = employees.filter(
+      (e) => e.workplace_id === Number(url.split("/").at(-2)),
+    );
+  else if (/\/employees\/\d+\?workplace_id=\d+$/.test(url)) {
+    const path = new URL(url, location.origin);
+    data = employees.find(
+      (e) =>
+        e.id === Number(path.pathname.split("/").pop()) &&
+        e.workplace_id === Number(path.searchParams.get("workplace_id")),
+    );
+    if (!data) return new Response("{}", { status: 404 });
+  } else if (/\/workplaces\/\d+$/.test(url))
     data = {
       ...points.find((p) => p.id === Number(url.split("/").pop())),
       employees,
@@ -129,6 +143,8 @@ const routes: Record<string, string> = {
   edit: "/workplaces/11/edit",
   add: "/workplaces/new",
   detail: "/workplaces/11",
+  "employee-new": "/workplaces/11/employees/new",
+  "employee-edit": "/workplaces/11/employees/101/edit",
 };
 async function main() {
   if (screen !== "login" && screen !== "register")

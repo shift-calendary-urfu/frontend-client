@@ -47,7 +47,13 @@ const employee: Employee = {
   position: "Менеджер",
   hire_date: "2026-10-16",
   is_active: true,
-  user: { id: 5, first_name: "Пётр", second_name: "Петров", third_name: null },
+  user: {
+    id: 5,
+    first_name: "Пётр",
+    second_name: "Петров",
+    third_name: null,
+    phone: "+79995553322",
+  },
 };
 const fetchMock = vi.fn();
 const reply = (body: unknown, status = 200) =>
@@ -170,17 +176,20 @@ test("пустой список предлагает создать точку",
 test("создание отправляет правильный JSON без owner_id и пустые optional как null", async () => {
   const user = start("/workplaces/new");
   await user.type(screen.getByLabelText("Название ПВЗ"), "  Новая точка  ");
+  await user.type(screen.getByLabelText("Адрес"), "  Мира, 10  ");
   await user.click(screen.getByLabelText("Wildberries"));
   await user.click(
     screen.getByRole("button", { name: "Сохранить", exact: true }),
   );
   await screen.findByText("ПВЗ создан.");
-  await screen.findByText("Новая точка");
+  await screen.findByRole("link", {
+    name: "Открыть ПВЗ Новая точка: Мира, 10",
+  });
   expect(writes()).toHaveLength(1);
   expect(writes()[0][0]).toBe("/backend/workplaces/");
   expect(JSON.parse(writes()[0][1].body)).toEqual({
     name: "Новая точка",
-    address: null,
+    address: "Мира, 10",
     phone: null,
     description: null,
     workplace_type: "wildberries",
@@ -191,6 +200,7 @@ test("создание отправляет правильный JSON без own
 test("равные и обратные часы работы не отправляются", async () => {
   const user = start("/workplaces/new");
   await user.type(screen.getByLabelText("Название ПВЗ"), "Точка");
+  await user.type(screen.getByLabelText("Адрес"), "Мира, 10");
   await user.clear(screen.getByLabelText("Конец работы"));
   await user.type(screen.getByLabelText("Конец работы"), "09:00");
   await user.click(
@@ -310,6 +320,7 @@ test("ошибка списка показывает повтор, а ошибк
   await screen.findByRole("link", { name: /^Открыть ПВЗ Машинная/ });
   await user.click(screen.getByRole("link", { name: "Добавить ПВЗ" }));
   await user.type(screen.getByLabelText("Название ПВЗ"), "Не терять");
+  await user.type(screen.getByLabelText("Адрес"), "Мира, 10");
   fetchMock.mockImplementation((url, init) =>
     init.method === "POST"
       ? Promise.resolve(reply({}, 500))

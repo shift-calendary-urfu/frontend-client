@@ -1,20 +1,17 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import {
-  Link,
-  useLocation,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from "react-router-dom";
-import {
-  api,
-  hasSession,
-  type Employee,
-  type Workplace,
-  type WorkplaceInput,
-} from "./api";
+import { useState, type FormEvent } from "react";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { api, type Employee, type Workplace, type WorkplaceInput } from "./api";
 import { Field, Notice, Icon, AddMark } from "./ui";
-import { logos } from "./assets";
+import {
+  positiveId,
+  useSessionError,
+  useResource,
+  LoadState,
+  MarketBadge,
+  Empty,
+  DeleteDialog,
+} from "./management-ui";
+import { EmployeeRows, AddEmployeeLink, canManageEmployees } from "./employees";
 
 const marketplaces: Record<string, string> = {
   ozon: "Ozon",
@@ -22,156 +19,6 @@ const marketplaces: Record<string, string> = {
   yandex_market: "Яндекс Маркет",
   other: "Другой",
 };
-const roles: Record<Employee["role"], string> = {
-  owner: "Владелец",
-  admin: "Администратор",
-  employee: "Сотрудник",
-};
-function positiveId(value: string | undefined | null) {
-  if (!value || !/^[1-9]\d*$/.test(value)) return null;
-  const id = Number(value);
-  return Number.isSafeInteger(id) ? id : null;
-}
-function useSessionError() {
-  const navigate = useNavigate();
-  return (error: unknown): string => {
-    if (!hasSession())
-      navigate("/login", {
-        replace: true,
-        state: { message: "Сессия истекла. Войдите снова." },
-      });
-    return error instanceof Error
-      ? error.message
-      : "Не удалось выполнить запрос.";
-  };
-}
-// key identifies all inputs of the request. Ignore responses from a previous route or retry.
-function useResource<T>(key: string, load: () => Promise<T>) {
-  const [state, setState] = useState<{
-    key: string;
-    data: T | null;
-    loading: boolean;
-    error: string;
-  }>({ key, data: null, loading: true, error: "" });
-  const [attempt, setAttempt] = useState(0);
-  const fail = useSessionError();
-  useEffect(() => {
-    let active = true;
-    setState({ key, data: null, loading: true, error: "" });
-    load()
-      .then((data) => {
-        if (active) setState({ key, data, loading: false, error: "" });
-      })
-      .catch((error) => {
-        if (active)
-          setState({ key, data: null, loading: false, error: fail(error) });
-      });
-    return () => {
-      active = false;
-    };
-  }, [key, attempt]);
-  const visible =
-    state.key === key ? state : { data: null, loading: true, error: "" };
-  return {
-    data: visible.data,
-    loading: visible.loading,
-    error: visible.error,
-    retry: () => setAttempt((value) => value + 1),
-  };
-}
-function LoadState({
-  loading,
-  error,
-  retry,
-}: {
-  loading: boolean;
-  error: string;
-  retry: () => void;
-}) {
-  return loading ? (
-    <p className="loading" role="status">
-      Загружаем данные…
-    </p>
-  ) : error ? (
-    <>
-      <Notice text={error} error />
-      <button className="primary" onClick={retry}>
-        Повторить
-      </button>
-    </>
-  ) : null;
-}
-function MarketBadge({ type }: { type: string }) {
-  return logos[type] ? (
-    <img
-      className="market-badge"
-      src={logos[type]}
-      alt=""
-      width="40"
-      height="40"
-    />
-  ) : (
-    <span className="market-badge market-other" aria-hidden="true">
-      ПВЗ
-    </span>
-  );
-}
-function Empty({ children }: { children: React.ReactNode }) {
-  return <div className="empty-state">{children}</div>;
-}
-function fullName(employee: Employee) {
-  return [
-    employee.user.second_name,
-    employee.user.first_name,
-    employee.user.third_name,
-  ]
-    .filter(Boolean)
-    .join(" ");
-}
-function dateLabel(date: string) {
-  const parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
-  return parts ? `${parts[3]}.${parts[2]}.${parts[1]}` : date;
-}
-function EmployeeRows({
-  employees,
-  withEditIcon = false,
-}: {
-  employees: Employee[];
-  withEditIcon?: boolean;
-}) {
-  const active = employees.filter((employee) => employee.is_active);
-  return active.length ? (
-    <ul className="employee-list">
-      {active.map((employee) => (
-        <li key={employee.id}>
-          <div>
-            <strong>{fullName(employee)}</strong>
-            {employee.position && <p>{employee.position}</p>}
-            {employee.hire_date && (
-              <p>Работает с {dateLabel(employee.hire_date)}</p>
-            )}
-          </div>
-          <span className="role-label">
-            {roles[employee.role] || employee.role}
-          </span>
-          {withEditIcon && (
-            <button
-              className="edit-button unavailable"
-              disabled
-              aria-label={`Редактирование сотрудника ${fullName(employee)} пока недоступно`}
-            >
-              <Icon name="edit" />
-            </button>
-          )}
-        </li>
-      ))}
-    </ul>
-  ) : (
-    <Empty>
-      <p>Сотрудников пока нет</p>
-    </Empty>
-  );
-}
 export function Workplaces() {
   const location = useLocation();
   const resource = useResource("workplaces", async () => {
@@ -272,12 +119,24 @@ function WorkplaceDetailContent({ id }: { id: number }) {
     return { point, me };
   });
   const point = resource.data?.point;
+  const location = useLocation();
+  const canManage =
+    !!point &&
+    !!resource.data &&
+    canManageEmployees(point, resource.data.me.id, point.employees);
   return (
     <main className="page workspace-page">
       <Link className="back" to="/workplaces">
         Назад
       </Link>
       <h1>{point?.name || "ПВЗ"}</h1>
+      <Notice
+        text={
+          typeof location.state?.message === "string"
+            ? location.state.message
+            : ""
+        }
+      />
       <LoadState {...resource} />
       {point && (
         <>
@@ -317,8 +176,18 @@ function WorkplaceDetailContent({ id }: { id: number }) {
             </Link>
           )}
           <section className="employee-section">
-            <h2>Сотрудники</h2>
-            <EmployeeRows employees={point.employees} />
+            <div className="section-heading">
+              <h2>Сотрудники</h2>
+              {canManage && (
+                <AddEmployeeLink workplaceId={id} from="workplace" />
+              )}
+            </div>
+            <EmployeeRows
+              employees={point.employees}
+              workplaceId={id}
+              editable={canManage}
+              from="workplace"
+            />
             <Link to={`/employees?workplace=${id}`}>
               Открыть список сотрудников
             </Link>
@@ -385,6 +254,7 @@ function WorkplaceForm({
   point?: Workplace;
   employees?: Employee[];
 }) {
+  const location = useLocation();
   const [data, setData] = useState<WorkplaceInput>(
     point
       ? {
@@ -416,6 +286,10 @@ function WorkplaceForm({
       setError("Укажите название ПВЗ.");
       return;
     }
+    if (!data.address?.trim()) {
+      setError("Укажите адрес ПВЗ.");
+      return;
+    }
     if (data.work_end_time <= data.work_start_time) {
       setError("Время окончания должно быть позже времени начала.");
       return;
@@ -423,7 +297,7 @@ function WorkplaceForm({
     const payload: WorkplaceInput = {
       ...data,
       name: data.name.trim(),
-      address: data.address?.trim() || null,
+      address: data.address.trim(),
       phone: data.phone?.trim() || null,
       description: data.description?.trim() || null,
     };
@@ -467,6 +341,13 @@ function WorkplaceForm({
         Назад
       </Link>
       <h1>{point ? "Редактировать" : "Добавить ПВЗ"}</h1>
+      <Notice
+        text={
+          typeof location.state?.message === "string"
+            ? location.state.message
+            : ""
+        }
+      />
       <form onSubmit={save} aria-busy={busy}>
         <fieldset disabled={busy}>
           <div className="fields">
@@ -483,7 +364,6 @@ function WorkplaceForm({
               value={data.address || ""}
               onChange={set("address")}
               maxLength={500}
-              required={false}
             />
           </div>
           <section className="hours-section">
@@ -563,16 +443,14 @@ function WorkplaceForm({
             <section className="employee-section">
               <div className="section-heading">
                 <h2>Сотрудники</h2>
-                <button
-                  className="add-button unavailable"
-                  type="button"
-                  disabled
-                  aria-label="Добавление сотрудников пока недоступно"
-                >
-                  <AddMark />
-                </button>
+                <AddEmployeeLink workplaceId={point.id} from="workplace-edit" />
               </div>
-              <EmployeeRows employees={employees || []} />
+              <EmployeeRows
+                employees={employees || []}
+                workplaceId={point.id}
+                editable
+                from="workplace-edit"
+              />
               <Link to={`/employees?workplace=${point.id}`}>
                 Открыть список сотрудников
               </Link>
@@ -601,7 +479,8 @@ function WorkplaceForm({
       </form>
       {confirm && point && (
         <DeleteDialog
-          name={point.name}
+          title="Вы уверены, что хотите удалить ПВЗ?"
+          description={`ПВЗ «${point.name}», связанные сотрудники и смены перестанут отображаться. Отменить удаление в приложении нельзя.`}
           busy={busy}
           cancel={() => {
             if (!busy) setConfirm(false);
@@ -610,176 +489,5 @@ function WorkplaceForm({
         />
       )}
     </main>
-  );
-}
-function DeleteDialog({
-  name,
-  busy,
-  cancel,
-  confirm,
-}: {
-  name: string;
-  busy: boolean;
-  cancel: () => void;
-  confirm: () => void;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null;
-    ref.current?.querySelector<HTMLButtonElement>("button")?.focus();
-    return () => {
-      if (previous?.isConnected) previous.focus();
-    };
-  }, []);
-  return (
-    <div
-      className="modal-backdrop"
-      onClick={(event) => {
-        if (event.target === event.currentTarget && !busy) cancel();
-      }}
-    >
-      <div
-        className="confirm-dialog"
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="delete-title"
-        aria-describedby="delete-description"
-        ref={ref}
-        tabIndex={-1}
-        onKeyDown={(event) => {
-          if (event.key === "Escape") {
-            event.preventDefault();
-            if (!busy) cancel();
-          }
-          if (event.key === "Tab") {
-            const buttons = ref.current?.querySelectorAll<HTMLButtonElement>(
-              "button:not(:disabled)",
-            );
-            if (!buttons?.length) {
-              event.preventDefault();
-              return;
-            }
-            const first = buttons[0],
-              last = buttons[buttons.length - 1];
-            if (event.shiftKey && document.activeElement === first) {
-              event.preventDefault();
-              last.focus();
-            } else if (!event.shiftKey && document.activeElement === last) {
-              event.preventDefault();
-              first.focus();
-            }
-          }
-        }}
-      >
-        <h2 id="delete-title">Вы уверены, что хотите удалить ПВЗ?</h2>
-        <p id="delete-description">
-          ПВЗ «{name}», связанные сотрудники и смены перестанут отображаться.
-          Отменить удаление в приложении нельзя.
-        </p>
-        <div className="dialog-actions">
-          <button className="secondary" disabled={busy} onClick={cancel}>
-            Оставить
-          </button>
-          <button
-            className="primary danger-fill"
-            disabled={busy}
-            onClick={confirm}
-          >
-            {busy ? "Удаляем…" : "Удалить"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-export function Employees() {
-  const [search, setSearch] = useSearchParams();
-  const points = useResource("employees-workplaces", () =>
-    api.workplaces.list(),
-  );
-  const raw = search.get("workplace");
-  const selected =
-    raw === null ? points.data?.[0]?.id || null : positiveId(raw);
-  const point = points.data?.find((item) => item.id === selected);
-  return (
-    <main className="page workspace-page">
-      <header className="page-heading">
-        <h1>Сотрудники</h1>
-        <button
-          className="add-button unavailable"
-          disabled
-          aria-label="Добавление сотрудников пока недоступно"
-        >
-          <AddMark />
-        </button>
-      </header>
-      <LoadState {...points} />
-      {points.data &&
-        (points.data.length ? (
-          <>
-            <div className="selected-point">
-              {point && (
-                <Link
-                  to={`/workplaces/${point.id}`}
-                  className="selected-point-title"
-                >
-                  <MarketBadge type={point.workplace_type} />
-                  <h2>{point.name}</h2>
-                </Link>
-              )}
-              <label className="point-picker">
-                <span>Выбрать</span>
-                <select
-                  aria-label="Рабочая точка"
-                  value={point?.id || ""}
-                  onChange={(event) =>
-                    setSearch({ workplace: event.target.value })
-                  }
-                >
-                  {!point && (
-                    <option value="" disabled>
-                      Выберите ПВЗ
-                    </option>
-                  )}
-                  {points.data.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                      {item.address ? ` — ${item.address}` : ""}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            {point ? (
-              <>
-                <EmployeesForPoint key={point.id} id={point.id} />
-              </>
-            ) : (
-              <Notice
-                text="Эта точка недоступна. Выберите ПВЗ из списка."
-                error
-              />
-            )}
-          </>
-        ) : (
-          <Empty>
-            <p>Нет доступных ПВЗ</p>
-            <Link className="primary button-link" to="/workplaces/new">
-              Добавить ПВЗ
-            </Link>
-          </Empty>
-        ))}
-    </main>
-  );
-}
-function EmployeesForPoint({ id }: { id: number }) {
-  const resource = useResource(`employees-${id}`, () =>
-    api.workplaces.employees(id),
-  );
-  return (
-    <>
-      <LoadState {...resource} />
-      {resource.data && <EmployeeRows employees={resource.data} withEditIcon />}
-    </>
   );
 }

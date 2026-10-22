@@ -568,13 +568,66 @@ fieldset {
   flex-basis: 28px;
   width: 28px;
   min-width: 28px;
-  height: 20px;
+  height: 44px;
+  margin-block: -10px;
   align-self: center;
 }
 .employee-list .edit-button .icon {
   width: 20px;
   height: 20px;
   flex-basis: 20px;
+}
+.employee-editor h1 {
+  line-height: 34px;
+  margin-bottom: 32px;
+}
+.employee-fields > .field > span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.employee-editor .fields {
+  gap: 16px;
+}
+.access-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 17px;
+  line-height: 20px;
+}
+.access-options legend {
+  font-weight: 700;
+  padding: 0;
+  margin-bottom: 8px;
+}
+.access-options label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+}
+.access-options input {
+  accent-color: var(--blue);
+  margin: 0;
+  width: 16px;
+  height: 16px;
+}
+.employee-point {
+  margin-top: 20px;
+}
+.employee-point .workplace-link {
+  border-bottom: 1px solid var(--divider);
+}
+.employee-editor [readonly] {
+  color: #555;
+}
+.back[aria-disabled] {
+  opacity: 0.55;
 }
 .editor-page {
   display: flex;

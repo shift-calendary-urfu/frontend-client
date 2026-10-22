@@ -1,0 +1,100 @@
+diff --git a/app/employees/services.py b/app/employees/services.py
+--- a/app/employees/services.py
++++ b/app/employees/services.py
+@@ -112,6 +112,7 @@
+ 
+         new_employee = EmployeeModel(
+             user_id=user.id,
++            workplace_id=workplace_id,
+             **employee_data.model_dump(exclude={"phone"})
+         )
+ 
+diff --git a/tests/test_employees.py b/tests/test_employees.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_employees.py
+@@ -0,0 +1,84 @@
++"""Employee API contract used by the frontend (temporary SQLite, no production DB)."""
++import pytest
++
++from tests.helpers import add_employee, create_workplace, register_and_login
++
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize("phone", ["+79993332211", "89993332211"])
++async def test_employee_crud_both_lists_duplicate_and_restore(client, phone):
++    _owner, headers = await register_and_login(client)
++    worker, worker_headers = await register_and_login(client, phone=phone)
++    point = await create_workplace(client, headers)
++    point_id = point["id"]
++    query = {"workplace_id": point_id}
++    payload = {"phone": phone, "role": "employee", "position": "Кассир"}
++
++    created = await client.post("/employees/", params=query, json=payload, headers=headers)
++    assert created.status_code == 201, created.text
++    employee = created.json()
++    assert employee["workplace_id"] == point_id
++    assert employee["user_id"] == worker["id"]
++    assert employee["user"]["phone"] == phone
++    assert employee["hire_date"]
++    assert employee["is_active"] is True
++    url = f'/employees/{employee["id"]}'
++
++    duplicate = await client.post("/employees/", params=query, json=payload, headers=headers)
++    assert duplicate.status_code == 409
++    fetched = await client.get(url, params=query, headers=headers)
++    assert fetched.status_code == 200
++    assert fetched.json() == employee
++
++    changed = await client.put(url, params=query, json={"role": "admin", "position": None}, headers=headers)
++    assert changed.status_code == 200, changed.text
++    assert changed.json()["role"] == "admin"
++    assert changed.json()["position"] is None
++    listed = await client.get(f"/workplaces/{point_id}/employees", headers=headers)
++    nested = await client.get(f"/workplaces/{point_id}", headers=headers)
++    assert listed.status_code == nested.status_code == 200
++    assert listed.json() == nested.json()["employees"] == [changed.json()]
++
++    # An admin may manage another employee in this point.
++    colleague, _ = await register_and_login(client)
++    another = await client.post("/employees/", params=query, json={"phone": colleague["phone"], "role": "employee"}, headers=worker_headers)
++    assert another.status_code == 201, another.text
++
++    deleted = await client.delete(url, params=query, headers=headers)
++    assert deleted.status_code == 200
++    assert deleted.json() == {"message": "Employee deactivated successfully"}
++    assert (await client.get(url, params=query, headers=headers)).status_code == 404
++    assert (await client.get("/users/me", headers=worker_headers)).status_code == 200
++    listed_after = await client.get(f"/workplaces/{point_id}/employees", headers=headers)
++    nested_after = await client.get(f"/workplaces/{point_id}", headers=headers)
++    assert all(e["id"] != employee["id"] for e in listed_after.json())
++    assert all(e["id"] != employee["id"] for e in nested_after.json()["employees"])
++    restored = await client.post("/employees/", params=query, json=payload, headers=headers)
++    assert restored.status_code == 201, restored.text
++    assert restored.json()["id"] == employee["id"]
++    assert restored.json()["is_active"] is True
++    assert restored.json()["role"] == "employee"
++
++
++@pytest.mark.asyncio
++async def test_employee_scope_permissions_missing_phone_and_query(client, session_factory):
++    _owner, headers = await register_and_login(client)
++    worker, worker_headers = await register_and_login(client)
++    point = await create_workplace(client, headers)
++    another_point = await create_workplace(client, headers)
++    employee_id = await add_employee(session_factory, user_id=worker["id"], workplace_id=point["id"])
++    query = {"workplace_id": point["id"]}
++    url = f"/employees/{employee_id}"
++    payload = {"phone": worker["phone"], "role": "employee"}
++
++    for method, path, body in [("POST", "/employees/", payload), ("PUT", url, {"role": "admin"}), ("DELETE", url, None)]:
++        result = await client.request(method, path, params=query, headers=worker_headers, **({"json": body} if body is not None else {}))
++        assert result.status_code == 403
++    assert (await client.get(url, params=query, headers=worker_headers)).status_code == 200
++    assert (await client.get(url, params={"workplace_id": another_point["id"]}, headers=headers)).status_code == 404
++    assert (await client.post("/employees/", params=query, json={"phone": "+79990000000", "role": "employee"}, headers=headers)).status_code == 404
++    assert (await client.post("/employees/", params=query, json={"phone": "123", "role": "employee"}, headers=headers)).status_code == 422
++    for method, path, body in [("POST", "/employees/", payload), ("GET", url, None), ("PUT", url, {"role": "admin"}), ("DELETE", url, None)]:
++        result = await client.request(method, path, headers=headers, **({"json": body} if body is not None else {}))
++        assert result.status_code == 422
++    assert (await client.get(url, params=query)).status_code == 401
