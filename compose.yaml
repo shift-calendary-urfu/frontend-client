@@ -1,0 +1,15 @@
+services:
+  frontend:
+    build: .
+    init: true
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      VITE_API_BASE_URL: /backend
+      BACKEND_URL: ${DOCKER_BACKEND_URL:-http://host.docker.internal:8000}
+      VITE_SUPPORT_URL: ${VITE_SUPPORT_URL:-}
+      VITE_PRIVACY_URL: ${VITE_PRIVACY_URL:-}
+      VITE_OFFER_URL: ${VITE_OFFER_URL:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
