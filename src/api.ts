@@ -47,6 +47,31 @@ export type EmployeeUpdate = {
   position?: string | null;
 };
 export type WorkplaceDetailData = Workplace & { employees: Employee[] };
+export type Shift = {
+  id: number;
+  workplace_id: number;
+  employee_id: number;
+  date: string;
+  start_time: string;
+  end_time: string;
+  notes: string | null;
+  first_name: string;
+  second_name: string;
+  third_name: string | null;
+};
+export type ShiftCreate = Pick<
+  Shift,
+  "employee_id" | "date" | "start_time" | "end_time" | "notes"
+>;
+export type ShiftUpdate = Pick<Shift, "start_time" | "end_time">;
+export type ShiftCalendar = Record<string, Shift[]>;
+export type ShiftDuplicate = { shift_ids: number[]; dates: string[] };
+export type ShiftDuplicateResult = {
+  count_duplicated_shifts_created: number;
+  workplace_id: number;
+  period: { start_date: string; end_date: string };
+  message: string;
+};
 type Tokens = {
   access_token: string;
   refresh_token: string;
@@ -84,6 +109,7 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public status = 0,
+    public detail?: unknown,
   ) {
     super(message);
   }
@@ -106,6 +132,13 @@ const labels: Record<string, string> = {
   role: "Уровень доступа",
   position: "Должность",
   workplace_id: "ПВЗ",
+  employee_id: "Сотрудник",
+  date: "Дата смены",
+  start_time: "Начало смены",
+  end_time: "Конец смены",
+  notes: "Примечание",
+  dates: "Даты копирования",
+  shift_ids: "Смены для копирования",
 };
 async function parse(response: Response) {
   const data = await response.json().catch(() => null);
@@ -144,7 +177,7 @@ async function parse(response: Response) {
     if (data?.detail === "Current password is not matching.")
       message = "Текущий пароль указан неверно.";
     if (response.status === 401) message = "Сессия истекла. Войдите снова.";
-    throw new ApiError(message, response.status);
+    throw new ApiError(message, response.status, data?.detail);
   }
   return data;
 }
@@ -276,4 +309,70 @@ export const api = {
     ): Promise<{ message: string }> =>
       request(`/employees/${employeeId}?workplace_id=${workplaceId}`, "DELETE"),
   },
+  shifts: {
+    calendar: (
+      workplaceId: number,
+      from: string,
+      to: string,
+    ): Promise<ShiftCalendar> =>
+      emptyShifts(
+        () =>
+          request(
+            `/shifts/calendar/?${new URLSearchParams({ workplace_id: String(workplaceId), date_from: from, date_to: to })}`,
+          ),
+        {} as ShiftCalendar,
+      ),
+    day: (workplaceId: number, date: string): Promise<Shift[]> =>
+      emptyShifts(
+        () =>
+          request(
+            `/shifts/?${new URLSearchParams({ workplace_id: String(workplaceId), date })}`,
+          ),
+        [] as Shift[],
+      ),
+    get: (workplaceId: number, shiftId: number): Promise<Shift> =>
+      request(`/shifts/${shiftId}?workplace_id=${workplaceId}`),
+    create: (workplaceId: number, data: ShiftCreate): Promise<Shift> =>
+      request(`/shifts/?workplace_id=${workplaceId}`, "POST", data),
+    update: (
+      workplaceId: number,
+      shiftId: number,
+      data: ShiftUpdate,
+    ): Promise<Shift> =>
+      request(`/shifts/${shiftId}?workplace_id=${workplaceId}`, "PUT", data),
+    remove: (
+      workplaceId: number,
+      shiftId: number,
+    ): Promise<{ message: string }> =>
+      request(`/shifts/${shiftId}?workplace_id=${workplaceId}`, "DELETE"),
+    removeDay: (
+      workplaceId: number,
+      date: string,
+    ): Promise<{ message: string }> =>
+      request(
+        `/shifts/?${new URLSearchParams({ workplace_id: String(workplaceId), date })}`,
+        "DELETE",
+      ),
+    duplicate: (
+      workplaceId: number,
+      data: ShiftDuplicate,
+    ): Promise<ShiftDuplicateResult> =>
+      request(`/shifts/duplicate/?workplace_id=${workplaceId}`, "POST", data),
+  },
 };
+
+// This backend reports an empty period/day as 404. Other 404s remain errors.
+async function emptyShifts<T>(load: () => Promise<T>, empty: T): Promise<T> {
+  try {
+    return await load();
+  } catch (error) {
+    if (
+      error instanceof ApiError &&
+      error.status === 404 &&
+      typeof error.detail === "string" &&
+      /^Shifts not found or not active(?:\b|:)/.test(error.detail)
+    )
+      return empty;
+    throw error;
+  }
+}

@@ -19,6 +19,13 @@ import "./style.css";
 import { Field, Notice, BottomNav, LegalLinks } from "./ui";
 import { Workplaces, WorkplaceDetail, WorkplaceEditor } from "./management";
 import { Employees, EmployeeEditor } from "./employees";
+import {
+  CalendarLayout,
+  CalendarMonth,
+  CalendarDay,
+  ShiftEditor,
+  DuplicateShifts,
+} from "./calendar";
 const empty: ProfileInput = {
   first_name: "",
   second_name: "",
@@ -416,11 +423,11 @@ function Settings() {
   );
 }
 function ProtectedLayout() {
-  const { pathname } = useLocation();
+  const pathname = useLocation().pathname.replace(/\/+$/, "");
   const editor =
     /^\/workplaces\/(new|[1-9]\d*\/(edit|employees\/(new|[1-9]\d*\/edit)))$/.test(
       pathname,
-    );
+    ) || /^\/calendar\/.+/.test(pathname);
   return hasSession() ? (
     <>
       <Outlet />
@@ -445,6 +452,13 @@ export function App() {
           element={<WorkplaceEditor key="edit" />}
         />
         <Route path="/employees" element={<Employees />} />
+        <Route path="/calendar" element={<CalendarLayout />}>
+          <Route index element={<CalendarMonth />} />
+          <Route path=":date" element={<CalendarDay />} />
+          <Route path=":date/shift/add" element={<ShiftEditor />} />
+          <Route path=":date/shift/:shiftId/edit" element={<ShiftEditor />} />
+          <Route path=":date/duplicate" element={<DuplicateShifts />} />
+        </Route>
         <Route
           path="/workplaces/:workplaceId/employees/new"
           element={<EmployeeEditor />}

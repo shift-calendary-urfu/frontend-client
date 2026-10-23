@@ -127,7 +127,7 @@ const writes = () =>
     ["POST", "PUT", "DELETE"].includes(init.method),
   );
 
-test("ПВЗ и сотрудники доступны из меню; календарь и чаты отключены", async () => {
+test("ПВЗ, сотрудники и календарь доступны из меню; чаты отключены", async () => {
   const user = start("/settings");
   await screen.findByDisplayValue("Иван");
   const nav = screen.getByRole("navigation");
@@ -139,12 +139,8 @@ test("ПВЗ и сотрудники доступны из меню; кален�
       .getAttribute("aria-current"),
   ).toBe("page");
   expect(
-    (
-      within(nav).getByRole("button", {
-        name: "Календарь",
-      }) as HTMLButtonElement
-    ).disabled,
-  ).toBe(true);
+    within(nav).getByRole("link", { name: "Календарь" }).getAttribute("href"),
+  ).toBe("/calendar");
   expect(
     (within(nav).getByRole("button", { name: "Чаты" }) as HTMLButtonElement)
       .disabled,
