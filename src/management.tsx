@@ -170,6 +170,12 @@ function WorkplaceDetailContent({ id }: { id: number }) {
               </div>
             )}
           </dl>
+          <Link
+            className="calendar-workplace-link"
+            to={`/calendar?workplace=${id}`}
+          >
+            Открыть календарь смен
+          </Link>
           {point.owner_id === resource.data?.me.id && (
             <Link className="primary button-link" to={`/workplaces/${id}/edit`}>
               Редактировать ПВЗ

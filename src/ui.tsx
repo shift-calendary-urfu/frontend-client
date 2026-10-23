@@ -127,7 +127,7 @@ export function BottomNav() {
   const entries = [
     { label: "ПВЗ", icon: "home", to: "/workplaces" },
     { label: "Сотрудники", icon: "people", to: "/employees" },
-    { label: "Календарь", icon: "calendar" },
+    { label: "Календарь", icon: "calendar", to: "/calendar" },
     { label: "Чаты", icon: "chat" },
     { label: "Настройки", icon: "settings", to: "/settings" },
   ];

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Проверка макетов календаря</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 12px;
+        background: #d8d8dd;
+      }
+      iframe {
+        display: block;
+        border: 0;
+        width: 393px;
+        height: 852px;
+        background: white;
+      }
+    </style>
+  </head>
+  <body>
+    <iframe title="Мобильный календарь"></iframe>
+    <script>
+      const screen =
+        new URLSearchParams(location.search).get("screen") || "calendar";
+      document.querySelector("iframe").src =
+        "./calendar.html#" +
+        (["calendar", "day", "add", "edit", "copy"].includes(screen)
+          ? screen
+          : "calendar");
+    </script>
+  </body>
+</html>
