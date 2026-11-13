@@ -3,12 +3,14 @@ import {
   useContext,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   type CSSProperties,
   type ReactNode,
 } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import type { Employee, Shift, WorkplaceDetailData } from "./api";
+import { lockBodyScroll } from "./scroll-lock";
 import {
   dateLabel,
   dateString,
@@ -44,12 +46,6 @@ export function colorClass(employeeId: number, employees: Employee[]) {
     .indexOf(employeeId);
   return `calendar-color-${(index < 0 ? employeeId : index) % 3}`;
 }
-function nameInCell(name: string) {
-  const letters = Array.from(name);
-  return letters.length > 5
-    ? `${letters.slice(0, 3).join("")}\u00ad${letters.slice(3).join("")}`
-    : name;
-}
 export function monthName(month: string) {
   const name = parseDate(`${month}-01`)!.toLocaleDateString("ru-RU", {
     month: "long",
@@ -72,15 +68,23 @@ export function MonthNavigation({
   month,
   change,
   reset,
+  resetTitle = "Вернуться к исходному месяцу",
   busy = false,
 }: {
   month: string;
   change: (value: string) => void;
   reset?: string;
+  resetTitle?: string;
   busy?: boolean;
 }) {
   const previous = moveMonth(month, -1),
     next = moveMonth(month, 1);
+  const year = month.slice(0, 4);
+  const visibleMonth = (
+    <>
+      {monthName(month)} <span className="month-year">{year}</span>
+    </>
+  );
   return (
     <div className="calendar-month-nav">
       <button
@@ -89,20 +93,25 @@ export function MonthNavigation({
         disabled={busy || !previous}
         onClick={() => previous && change(previous)}
       >
-        {previous ? adjacentLabel(month, previous) : ""}
+        <span className="month-arrow" aria-hidden="true">
+          ‹
+        </span>
+        <span className="month-adjacent">
+          {previous ? adjacentLabel(month, previous) : ""}
+        </span>
       </button>
       <h2 aria-label={monthLabel(month)} aria-live="polite">
         {reset ? (
           <button
             type="button"
-            title="Вернуться к исходному месяцу"
+            title={resetTitle}
             disabled={busy}
             onClick={() => change(reset)}
           >
-            {monthName(month)}
+            {visibleMonth}
           </button>
         ) : (
-          monthName(month)
+          visibleMonth
         )}
       </h2>
       <button
@@ -111,30 +120,46 @@ export function MonthNavigation({
         disabled={busy || !next}
         onClick={() => next && change(next)}
       >
-        {next ? adjacentLabel(month, next) : ""}
+        <span className="month-adjacent">
+          {next ? adjacentLabel(month, next) : ""}
+        </span>
+        <span className="month-arrow" aria-hidden="true">
+          ›
+        </span>
       </button>
     </div>
   );
 }
 export function ShiftPreview({
   shifts,
-  previewIds = [],
+  copies = [],
 }: {
   shifts: Shift[];
-  previewIds?: number[];
+  copies?: Shift[];
 }) {
   const { employees } = useCalendar();
+  const preview = [
+    ...shifts.map((shift) => ({ shift, copy: false })),
+    ...copies.map((shift) => ({ shift, copy: true })),
+  ];
+  const limit = 3;
+  const visible = preview.slice(0, limit);
+  if (copies.length && !visible.some(({ copy }) => copy))
+    visible[limit - 1] = preview[shifts.length];
   return (
     <span className="calendar-preview" aria-hidden="true">
-      {shifts.map((shift, index) => (
+      {visible.map(({ shift, copy }) => (
         <span
-          key={`${shift.id}-${index}`}
-          className={`calendar-chip ${colorClass(shift.employee_id, employees)}${previewIds.includes(shift.id) ? " calendar-copy-preview" : ""}`}
+          key={`${shift.id}-${copy}`}
+          className={`calendar-chip ${colorClass(shift.employee_id, employees)}${copy ? " calendar-copy-preview" : ""}`}
           title={`${shiftName(shift)}: ${timeLabel(shift.start_time)}–${timeLabel(shift.end_time)}`}
         >
-          {nameInCell(shift.first_name)}
+          {shift.first_name}
         </span>
       ))}
+      {preview.length > limit && (
+        <span className="calendar-more">+{preview.length - limit}</span>
+      )}
     </span>
   );
 }
@@ -261,7 +286,12 @@ export function ShiftTimeline({
         aria-hidden="true"
       >
         {ticks.map((hour) => (
-          <span key={hour}>{hour}</span>
+          <span
+            key={hour}
+            className={hour % 2 === 0 ? undefined : "timeline-hour-odd"}
+          >
+            {hour}
+          </span>
         ))}
       </div>
       <div className="timeline-rows">
@@ -281,6 +311,17 @@ export function ShiftTimeline({
             const description = `${shiftName(shift)} ${timing}`;
             const className = `timeline-bar ${colorClass(shift.employee_id, employees)}${selectedIds && !selectedIds.includes(shift.id) ? " timeline-unselected" : ""}`;
             const title = `${description}${shift.notes ? ` · ${shift.notes}` : ""}`;
+            const schedule = (
+              <>
+                <span className="timeline-caption">
+                  <strong>{shiftName(shift)}</strong>
+                  <span className="timeline-time">{timing}</span>
+                </span>
+                <span className="timeline-track" aria-hidden="true">
+                  <span className="timeline-segment" style={style} />
+                </span>
+              </>
+            );
             return (
               <div className="timeline-row" key={shift.id}>
                 {toggle ? (
@@ -291,17 +332,15 @@ export function ShiftTimeline({
                     aria-label={description}
                     disabled={busy}
                     className={className}
-                    style={style}
                     title={title}
                     onClick={() => toggle(shift.id)}
                   >
-                    {shift.first_name}
+                    {schedule}
                   </button>
                 ) : editable ? (
                   <Link
                     to={`/calendar/${date}/shift/${shift.id}/edit?workplace=${point.id}`}
                     className={className}
-                    style={style}
                     aria-label={`Редактировать смену ${description}`}
                     title={title}
                     aria-disabled={busy || undefined}
@@ -310,19 +349,18 @@ export function ShiftTimeline({
                       if (busy) event.preventDefault();
                     }}
                   >
-                    {shift.first_name}
+                    {schedule}
                   </Link>
                 ) : (
                   <button
                     type="button"
                     className={className}
-                    style={style}
                     aria-label={`Посмотреть смену ${description}`}
                     title={title}
                     disabled={busy}
                     onClick={() => inspect?.(shift)}
                   >
-                    {shift.first_name}
+                    {schedule}
                   </button>
                 )}
               </div>
@@ -335,16 +373,20 @@ export function ShiftTimeline({
 
 export function CalendarSheet({
   title,
+  subtitle,
   children,
   closeTo,
+  returnFocus,
   busy = false,
   fullScreen = false,
   footer,
   suspended = false,
 }: {
   title: string;
+  subtitle?: string;
   children: ReactNode;
   closeTo: string;
+  returnFocus?: string;
   busy?: boolean;
   fullScreen?: boolean;
   footer?: ReactNode;
@@ -354,22 +396,22 @@ export function CalendarSheet({
   const ref = useRef<HTMLElement>(null);
   const navigate = useNavigate();
   const close = () => {
-    if (!busy && !suspended) navigate(closeTo, { replace: true });
+    if (!busy && !suspended)
+      navigate(closeTo, { replace: true, state: returnFocus ? { returnFocus } : null });
   };
-  useEffect(() => {
+  useLayoutEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
-    const overflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const unlock = lockBodyScroll();
     ref.current
       ?.querySelector<HTMLButtonElement>("[data-calendar-close]")
-      ?.focus();
+      ?.focus({ preventScroll: true });
     return () => {
-      document.body.style.overflow = overflow;
-      if (previous?.isConnected) previous.focus();
+      unlock();
+      if (previous?.isConnected) previous.focus({ preventScroll: true });
     };
   }, []);
   useEffect(() => {
-    if (busy) ref.current?.focus();
+    if (busy) ref.current?.focus({ preventScroll: true });
   }, [busy]);
   return (
     <div
@@ -398,13 +440,15 @@ export function CalendarSheet({
           if (event.key === "Tab") {
             const elements = Array.from(
               ref.current?.querySelectorAll<HTMLElement>(
-                'a[href],button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),summary,[tabindex="0"]',
+                'a[href]:not([tabindex="-1"]),button:not(:disabled):not([tabindex="-1"]),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),summary,[tabindex="0"]',
               ) || [],
             ).filter(
               (element) =>
                 !element.closest("[hidden],[inert]") &&
                 (!element.closest("details:not([open])") ||
-                  element.tagName === "SUMMARY"),
+                  (element.tagName === "SUMMARY" &&
+                    element.parentElement ===
+                      element.closest("details:not([open])"))),
             );
             const first = elements[0],
               last = elements[elements.length - 1];
@@ -431,7 +475,12 @@ export function CalendarSheet({
         }}
       >
         <header className="calendar-sheet-heading">
-          <h2 id={titleId}>{title}</h2>
+          <div>
+            <h2 id={titleId}>{title}</h2>
+            {subtitle && (
+              <span className="calendar-sheet-subtitle">{subtitle}</span>
+            )}
+          </div>
           <button
             type="button"
             data-calendar-close

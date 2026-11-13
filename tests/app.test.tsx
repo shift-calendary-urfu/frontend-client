@@ -104,9 +104,7 @@ test("settings защищены, вход передаёт form-urlencoded и о
   expect(init.body.get("username")).toBe(profile.email);
   await user.click(nav.getByRole("link", { name: "Настройки", exact: true }));
   await screen.findByDisplayValue("Иван");
-  expect((screen.getByRole("checkbox") as HTMLInputElement).disabled).toBe(
-    true,
-  );
+  expect(screen.queryByRole("checkbox")).toBeNull();
 });
 test("сохранение профиля отправляет только поля модели; выход закрывает настройки", async () => {
   const user = await loginAndOpenSettings();
@@ -163,7 +161,9 @@ test("смена email требует нового входа", async () => {
 });
 test("смена пароля отправляет old_password и new_password", async () => {
   const user = await loginAndOpenSettings();
-  await user.click(screen.getByRole("button", { name: "Изменить пароль" }));
+  await user.click(screen.getByRole("link", { name: "Изменить пароль" }));
+  await screen.findByRole("heading", { name: "Смена пароля" });
+  expect(screen.queryByRole("heading", { name: "Настройки" })).toBeNull();
   await user.type(screen.getByLabelText("Текущий пароль"), "Password123");
   await user.type(
     screen.getByLabelText("Новый пароль", { exact: true }),
@@ -171,8 +171,13 @@ test("смена пароля отправляет old_password и new_password"
   );
   await user.type(
     screen.getByLabelText("Повторите новый пароль"),
-    "NewPassword123",
+    "AnotherPassword123",
   );
+  await user.click(screen.getByRole("button", { name: "Обновить пароль" }));
+  expect(screen.getByRole("alert").textContent).toBe("Новые пароли не совпадают.");
+  expect(fetchMock.mock.calls.some(([url]) => url.endsWith("/users/me/password"))).toBe(false);
+  await user.clear(screen.getByLabelText("Повторите новый пароль"));
+  await user.type(screen.getByLabelText("Повторите новый пароль"), "NewPassword123");
   await user.click(screen.getByRole("button", { name: "Обновить пароль" }));
   await screen.findByText("Пароль изменён.");
   expect(

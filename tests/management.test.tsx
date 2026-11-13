@@ -151,6 +151,9 @@ test("ПВЗ, сотрудники и календарь доступны из �
 test("кнопки редактирования есть только у владельца, просмотр содержит данные и сотрудников", async () => {
   const user = start();
   await screen.findByRole("link", { name: /^Открыть ПВЗ Машинная/ });
+  const card = within(screen.getByRole("link", { name: /^Открыть ПВЗ Машинная/ }));
+  expect(card.getByText("Машинная", { exact: true })).toBeTruthy();
+  expect(card.getByText("09:00–21:00")).toBeTruthy();
   expect(
     screen.getByRole("link", { name: "Редактировать ПВЗ Машинная" }),
   ).toBeTruthy();
@@ -197,8 +200,14 @@ test("равные и обратные часы работы не отправл
   const user = start("/workplaces/new");
   await user.type(screen.getByLabelText("Название ПВЗ"), "Точка");
   await user.type(screen.getByLabelText("Адрес"), "Мира, 10");
-  await user.clear(screen.getByLabelText("Конец работы"));
-  await user.type(screen.getByLabelText("Конец работы"), "09:00");
+  await user.click(screen.getByRole("button", { name: /^Конец работы:/ }));
+  const time = within(screen.getByRole("dialog", { name: "Конец работы" }));
+  await user.click(
+    within(time.getByRole("listbox", { name: "Часы" })).getByRole("option", {
+      name: "09",
+    }),
+  );
+  await user.click(time.getByRole("button", { name: "Готово" }));
   await user.click(
     screen.getByRole("button", { name: "Сохранить", exact: true }),
   );
@@ -206,8 +215,10 @@ test("равные и обратные часы работы не отправл
   expect(writes()).toHaveLength(0);
 });
 test("редактирование заполняет форму и отправляет PUT с обоими временами", async () => {
+  points[0] = { ...points[0], work_start_time: "09:00:00", work_end_time: "21:00:00" };
   const user = start("/workplaces/11/edit");
   await screen.findByDisplayValue("Машинная");
+  expect(screen.getByRole("button", { name: "Начало работы: 09:00" })).toBeTruthy();
   await user.clear(screen.getByLabelText("Название ПВЗ"));
   await user.type(screen.getByLabelText("Название ПВЗ"), "Новое имя");
   await user.click(
@@ -262,7 +273,13 @@ test("удаление требует подтверждения, отмена �
 test("сотрудники загружаются только выбранного ПВЗ; записи по employee API не вызываются", async () => {
   const user = start("/employees?workplace=11");
   await screen.findByText("Петров Пётр");
-  await user.selectOptions(screen.getByLabelText("Рабочая точка"), "12");
+  await user.click(screen.getByRole("button", { name: /^Выбрать ПВЗ/ }));
+  await user.click(
+    within(screen.getByRole("dialog", { name: "Выберите ПВЗ" })).getByRole(
+      "button",
+      { name: /Центральная/ },
+    ),
+  );
   await screen.findByText("Сотрудников пока нет");
   expect(screen.queryByText("Петров Пётр")).toBeNull();
   expect(
@@ -285,9 +302,15 @@ test("просроченный ответ от предыдущего ПВЗ н�
       : original(url, init),
   );
   const user = start("/employees?workplace=11");
-  await screen.findByRole("combobox");
+  const picker = await screen.findByRole("button", { name: /^Выбрать ПВЗ/ });
   await waitFor(() => expect(resolve).toBeTypeOf("function"));
-  await user.selectOptions(screen.getByLabelText("Рабочая точка"), "12");
+  await user.click(picker);
+  await user.click(
+    within(screen.getByRole("dialog", { name: "Выберите ПВЗ" })).getByRole(
+      "button",
+      { name: /Центральная/ },
+    ),
+  );
   await screen.findByText("Сотрудников пока нет");
   await act(async () => resolve(reply([employee])));
   expect(screen.queryByText("Петров Пётр")).toBeNull();

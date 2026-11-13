@@ -290,14 +290,10 @@ test.each(["/employees?workplace=11", "/workplaces/11", "/workplaces/11/edit"])(
         name: "Редактировать сотрудника Петров Пётр",
       }),
     );
-    const name = (await screen.findByLabelText(
-      "Имя и фамилия",
-    )) as HTMLInputElement;
-    expect(name.value).toBe("Петров Пётр");
-    expect(name.readOnly).toBe(true);
-    expect(
-      (screen.getByLabelText("Телефон") as HTMLInputElement).readOnly,
-    ).toBe(true);
+    const name = await screen.findByRole("textbox", { name: "Имя и фамилия" });
+    expect(name.textContent).toBe("Петров Пётр");
+    expect(name.getAttribute("aria-readonly")).toBe("true");
+    expect(screen.getByRole("textbox", { name: "Телефон" }).getAttribute("aria-readonly")).toBe("true");
     expect(screen.getByText("Работает с 20.10.2026")).toBeTruthy();
     await user.clear(screen.getByLabelText("Должность (необязательно)"));
     await user.click(
@@ -372,10 +368,11 @@ test.each(["/employees?workplace=11", "/workplaces/11"])(
     );
     const dialog = screen.getByRole("alertdialog");
     await waitFor(() => expect(dialog.getAttribute("aria-busy")).toBe("true"));
-    expect(document.activeElement).toBe(dialog);
+    const heading = within(dialog).getByRole("heading");
+    expect(document.activeElement).toBe(heading);
     await user.keyboard("{Escape}{Tab}");
     expect(screen.getByRole("alertdialog")).toBe(dialog);
-    expect(document.activeElement).toBe(dialog);
+    expect(document.activeElement).toBe(heading);
     await act(async () => release());
     await screen.findByText("Сотрудник удалён из ПВЗ.");
     await screen.findByText("Смирнова Анна");
@@ -584,6 +581,6 @@ test("сотрудник другой точки не открывает фор�
   await user.click(screen.getByRole("link", { name: "Назад" }));
   await screen.findByText("Сотрудников пока нет");
   expect(
-    (screen.getByLabelText("Рабочая точка") as HTMLSelectElement).value,
-  ).toBe("12");
+    screen.getByRole("button", { name: /Рабочая точка: Центральная/ }),
+  ).toBeTruthy();
 });

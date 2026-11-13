@@ -2,6 +2,8 @@ import { useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { api, type Employee, type Workplace, type WorkplaceInput } from "./api";
 import { Field, Notice, Icon, AddMark } from "./ui";
+import { TimeField } from "./pickers";
+import { timeLabel } from "./calendar-utils";
 import {
   positiveId,
   useSessionError,
@@ -19,6 +21,9 @@ const marketplaces: Record<string, string> = {
   yandex_market: "Яндекс Маркет",
   other: "Другой",
 };
+function workHours(point: Workplace) {
+  return `${timeLabel(point.work_start_time)}–${timeLabel(point.work_end_time)}`;
+}
 export function Workplaces() {
   const location = useLocation();
   const resource = useResource("workplaces", async () => {
@@ -56,8 +61,12 @@ export function Workplaces() {
                   aria-label={`Открыть ПВЗ ${point.name}${point.address ? `: ${point.address}` : ""}`}
                 >
                   <MarketBadge type={point.workplace_type} />
-                  <span className="workplace-address">
-                    {point.address || point.name}
+                  <span className="workplace-card-text">
+                    <strong className="workplace-name">{point.name}</strong>
+                    {point.address && (
+                      <span className="workplace-address">{point.address}</span>
+                    )}
+                    <span className="workplace-hours">{workHours(point)}</span>
                   </span>
                 </Link>
                 <button
@@ -154,7 +163,7 @@ function WorkplaceDetailContent({ id }: { id: number }) {
             <div>
               <dt>Часы работы</dt>
               <dd>
-                {point.work_start_time}–{point.work_end_time}
+                {workHours(point)}
               </dd>
             </div>
             {point.phone && (
@@ -171,7 +180,7 @@ function WorkplaceDetailContent({ id }: { id: number }) {
             )}
           </dl>
           <Link
-            className="calendar-workplace-link"
+            className="detail-link"
             to={`/calendar?workplace=${id}`}
           >
             Открыть календарь смен
@@ -194,7 +203,7 @@ function WorkplaceDetailContent({ id }: { id: number }) {
               editable={canManage}
               from="workplace"
             />
-            <Link to={`/employees?workplace=${id}`}>
+            <Link className="detail-link" to={`/employees?workplace=${id}`}>
               Открыть список сотрудников
             </Link>
           </section>
@@ -269,8 +278,8 @@ function WorkplaceForm({
           phone: point.phone,
           description: point.description,
           workplace_type: point.workplace_type,
-          work_start_time: point.work_start_time,
-          work_end_time: point.work_end_time,
+          work_start_time: timeLabel(point.work_start_time),
+          work_end_time: timeLabel(point.work_end_time),
         }
       : initial,
   );
@@ -363,6 +372,7 @@ function WorkplaceForm({
               value={data.name}
               onChange={set("name")}
               maxLength={255}
+              placeholder=""
             />
             <Field
               label="Адрес"
@@ -370,26 +380,23 @@ function WorkplaceForm({
               value={data.address || ""}
               onChange={set("address")}
               maxLength={500}
+              placeholder=""
             />
           </div>
           <section className="hours-section">
-            <h2>График работы сотрудников</h2>
+            <h2>Часы работы ПВЗ</h2>
             <div className="time-fields">
-              <Field
+              <TimeField
                 label="Начало работы"
                 caption="Начало"
-                name="work_start_time"
-                type="time"
-                step={60}
+                step={1}
                 value={data.work_start_time}
                 onChange={set("work_start_time")}
               />
-              <Field
+              <TimeField
                 label="Конец работы"
                 caption="Конец"
-                name="work_end_time"
-                type="time"
-                step={60}
+                step={1}
                 value={data.work_end_time}
                 onChange={set("work_end_time")}
               />
@@ -457,7 +464,7 @@ function WorkplaceForm({
                 editable
                 from="workplace-edit"
               />
-              <Link to={`/employees?workplace=${point.id}`}>
+              <Link className="detail-link" to={`/employees?workplace=${point.id}`}>
                 Открыть список сотрудников
               </Link>
             </section>

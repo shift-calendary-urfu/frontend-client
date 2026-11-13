@@ -110,6 +110,19 @@ export function calendarFixture() {
       );
       return response(detail[2] ? employees : { ...item, employees });
     }
+    const employeePath = /^\/employees\/(\d+)$/.exec(path);
+    if (employeePath && method === "GET") {
+      const workplaceId = Number(url.searchParams.get("workplace_id"));
+      const found = state.employees.find(
+        (item) =>
+          item.id === Number(employeePath[1]) &&
+          item.workplace_id === workplaceId &&
+          item.is_active,
+      );
+      return found
+        ? response(found)
+        : response({ detail: "Employee not found" }, 404);
+    }
     if (path.startsWith("/shifts/")) {
       const id = Number(url.searchParams.get("workplace_id"));
       if (!id) throw new Error("A shift request must specify workplace_id");

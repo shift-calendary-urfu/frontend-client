@@ -14,11 +14,13 @@ import {
   Empty,
   LoadState,
   MarketBadge,
+  WorkplacePicker,
   positiveId,
+  useMutation,
   useResource,
-  useSessionError,
 } from "./management-ui";
-import { Field, Notice } from "./ui";
+import { Notice } from "./ui";
+import { ChoicePicker, TimeField } from "./pickers";
 import {
   calendarPath,
   dateLabel,
@@ -64,27 +66,12 @@ function PointHeader({
           <h2>{point.name}</h2>
         </Link>
       )}
-      <label className="point-picker">
-        <span>Выбрать</span>
-        <select
-          aria-label="Рабочая точка"
-          value={point?.id || ""}
-          disabled={disabled}
-          onChange={(event) => change(event.target.value)}
-        >
-          {!point && (
-            <option value="" disabled>
-              Выберите ПВЗ
-            </option>
-          )}
-          {points.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.name}
-              {item.address ? ` — ${item.address}` : ""}
-            </option>
-          ))}
-        </select>
-      </label>
+      <WorkplacePicker
+        points={points}
+        selected={point?.id}
+        change={change}
+        disabled={disabled}
+      />
     </div>
   );
 }
@@ -240,6 +227,8 @@ export function CalendarMonth({
 }) {
   const { point, canManage, revision } = useCalendar();
   const [search, setSearch] = useSearchParams();
+  const location = useLocation();
+  const grid = useRef<HTMLDivElement>(null);
   const month =
     monthOverride ?? search.get("month") ?? dateString(new Date()).slice(0, 7);
   const valid = validMonth(month);
@@ -251,6 +240,19 @@ export function CalendarMonth({
         ? api.shifts.calendar(point.id, bounds.from, bounds.to)
         : Promise.resolve({}),
   );
+  useEffect(() => {
+    const returnFocus = location.state?.returnFocus;
+    if (
+      background ||
+      !calendar.data ||
+      typeof returnFocus !== "string" ||
+      !parseDate(returnFocus)
+    )
+      return;
+    grid.current
+      ?.querySelector<HTMLAnchorElement>(`a[href="${dayPath(point.id, returnFocus)}"]`)
+      ?.focus();
+  }, [background, calendar.data, location.state, point.id]);
   if (!valid) return <InvalidCalendar />;
   const total = Object.values(calendar.data || {}).reduce(
     (count, shifts) => count + shifts.length,
@@ -263,6 +265,7 @@ export function CalendarMonth({
       <MonthNavigation
         month={month}
         reset={dateString(new Date()).slice(0, 7)}
+        resetTitle="Вернуться к текущему месяцу"
         busy={background}
         change={(value) =>
           setSearch(
@@ -274,17 +277,19 @@ export function CalendarMonth({
       <LoadState {...calendar} />
       {calendar.data && (
         <>
-          <MonthGrid
-            month={month}
-            workplace={point.id}
-            content={(date) => {
-              const shifts = calendar.data![date] || [];
-              return {
-                label: shiftsLabel(shifts),
-                visual: <ShiftPreview shifts={shifts} />,
-              };
-            }}
-          />
+          <div ref={grid}>
+            <MonthGrid
+              month={month}
+              workplace={point.id}
+              content={(date) => {
+                const shifts = calendar.data![date] || [];
+                return {
+                  label: shiftsLabel(shifts),
+                  visual: <ShiftPreview shifts={shifts} />,
+                };
+              }}
+            />
+          </div>
           <p className={total ? "sr-only" : "hint calendar-empty-hint"}>
             {total
               ? `Смен за месяц: ${total}.`
@@ -299,43 +304,6 @@ export function CalendarMonth({
   );
 }
 
-// Lock synchronously and suppress callbacks after leaving this route.
-function useMutation() {
-  const [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
-  const locked = useRef(false),
-    mounted = useRef(true);
-  const fail = useSessionError();
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
-  async function run<T>(
-    task: () => Promise<T>,
-    success: (value: T) => void,
-    settled?: () => void,
-  ) {
-    if (locked.current) return;
-    locked.current = true;
-    setBusy(true);
-    setError("");
-    try {
-      const value = await task();
-      if (mounted.current) success(value);
-    } catch (error) {
-      if (mounted.current) setError(fail(error));
-    } finally {
-      locked.current = false;
-      if (mounted.current) {
-        setBusy(false);
-        settled?.();
-      }
-    }
-  }
-  return { busy, error, setError, run };
-}
 type Removal = { title: string; description: string; ids: number[] } | "day";
 export function CalendarDay() {
   const { date } = useParams();
@@ -354,6 +322,10 @@ function DayContent({ date }: { date: string }) {
   const [removal, setRemoval] = useState<Removal | null>(null),
     [message, setMessage] = useState("");
   const [inspected, setInspected] = useState<Shift | null>(null);
+  const inspectedRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (inspected) inspectedRef.current?.scrollIntoView?.({ block: "nearest" });
+  }, [inspected]);
   const groups = new Map<number, Shift[]>();
   for (const shift of shifts.data || []) {
     const list = groups.get(shift.employee_id) || [];
@@ -398,6 +370,7 @@ function DayContent({ date }: { date: string }) {
       <CalendarSheet
         title={dayTitle(date)}
         closeTo={calendarPath(point.id, date.slice(0, 7))}
+        returnFocus={date}
         busy={action.busy}
         suspended={!!removal}
       >
@@ -421,7 +394,13 @@ function DayContent({ date }: { date: string }) {
               </Empty>
             )}
             {inspected && !canManage && (
-              <div className="calendar-inspected" aria-live="polite">
+              <div
+                className="calendar-inspected"
+                ref={inspectedRef}
+                role="group"
+                aria-label="Сведения о смене"
+                aria-live="polite"
+              >
                 <strong>{shiftName(inspected)}</strong>
                 <p>
                   {timeLabel(inspected.start_time)}–
@@ -641,19 +620,19 @@ function ShiftForm({
     <>
       <CalendarSheet
         title={dayTitle(date)}
+        subtitle={shift ? "Редактировать смену" : "Добавить смену"}
         closeTo={dayPath(point.id, date)}
         busy={action.busy}
         suspended={removing}
       >
-        <h1 className="sr-only">
-          {shift ? "Редактировать смену" : "Добавить смену"}
-        </h1>
-        <ShiftTimeline
-          shifts={shifts}
-          date={date}
-          editable
-          busy={action.busy}
-        />
+        <details className="calendar-extra shift-context" open={shifts.length <= 3}>
+          <summary>Смены этого дня · {shifts.length}</summary>
+          {shifts.length ? (
+            <ShiftTimeline shifts={shifts} date={date} editable busy={action.busy} />
+          ) : (
+            <p className="hint">На этот день смен нет.</p>
+          )}
+        </details>
         {!shift && !employees.length ? (
           <Empty>
             <p>В этом ПВЗ пока нет активных сотрудников.</p>
@@ -672,49 +651,39 @@ function ShiftForm({
                 className={`shift-person ${selectedEmployee ? colorClass(selectedEmployee, employees) : ""}`}
               >
                 {shift ? (
-                  <input
-                    aria-label="Сотрудник"
-                    value={shift.first_name}
-                    title={shiftName(shift)}
-                    readOnly
-                  />
+                  <p className="shift-person-name">
+                    <span className="sr-only">Сотрудник: </span>
+                    {shiftName(shift)}
+                  </p>
                 ) : (
-                  <select
-                    aria-label="Сотрудник"
+                  <ChoicePicker
+                    title="Выберите сотрудника"
+                    variant="employee"
                     value={employee}
-                    onChange={(event) => setEmployee(event.target.value)}
-                    required
-                  >
-                    <option value="" disabled>
-                      Выберите сотрудника
-                    </option>
-                    {employees.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {shiftName(item.user)}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setEmployee}
+                    options={employees.map((item) => ({
+                      value: String(item.id),
+                      title: shiftName(item.user),
+                      description: item.position || undefined,
+                    }))}
+                  />
                 )}
               </div>
               <time className="sr-only" dateTime={date}>
                 Дата смены: {dateLabel(date)}
               </time>
               <div className="shift-time-fields">
-                <Field
+                <TimeField
                   label="Начало смены"
                   caption="Начало"
-                  name="start_time"
-                  type="time"
-                  step={1800}
+                  step={30}
                   value={startTime}
                   onChange={setStartTime}
                 />
-                <Field
+                <TimeField
                   label="Конец смены"
                   caption="Конец"
-                  name="end_time"
-                  type="time"
-                  step={1800}
+                  step={30}
                   value={endTime}
                   onChange={setEndTime}
                 />
@@ -877,7 +846,7 @@ function DuplicateForm({ date, shifts }: { date: string; shifts: Shift[] }) {
       busy={action.busy}
       footer={
         <>
-          <p className="copy-summary sr-only">
+          <p className="copy-summary" role="status">
             Смен: {ids.length} · Дат: {dates.length} · Новых смен:{" "}
             {ids.length * dates.length}
           </p>
@@ -900,19 +869,22 @@ function DuplicateForm({ date, shifts }: { date: string; shifts: Shift[] }) {
             Нажмите смены на шкале времени, которые нужно скопировать. Затем
             выберите даты в календаре.
           </p>
-          <ShiftTimeline
-            shifts={shifts}
-            date={date}
-            selectedIds={ids}
-            toggle={(id) =>
-              setIds((current) =>
-                current.includes(id)
-                  ? current.filter((item) => item !== id)
-                  : [...current, id],
-              )
-            }
-            busy={action.busy}
-          />
+          <details className="copy-sources" open={shifts.length <= 3}>
+            <summary>Исходные смены · {ids.length} из {shifts.length}</summary>
+            <ShiftTimeline
+              shifts={shifts}
+              date={date}
+              selectedIds={ids}
+              toggle={(id) =>
+                setIds((current) =>
+                  current.includes(id)
+                    ? current.filter((item) => item !== id)
+                    : [...current, id],
+                )
+              }
+              busy={action.busy}
+            />
+          </details>
           <MonthNavigation
             month={month}
             change={setMonth}
@@ -936,8 +908,8 @@ function DuplicateForm({ date, shifts }: { date: string; shifts: Shift[] }) {
                   label: `${shiftsLabel(existing)}${preview.length ? `; будет добавлено: ${preview.length}` : ""}`,
                   visual: (
                     <ShiftPreview
-                      shifts={[...existing, ...preview]}
-                      previewIds={preview.map((shift) => shift.id)}
+                      shifts={existing}
+                      copies={preview}
                     />
                   ),
                 };
@@ -946,10 +918,6 @@ function DuplicateForm({ date, shifts }: { date: string; shifts: Shift[] }) {
           )}
           <details className="calendar-extra copy-options">
             <summary>Параметры копирования · Дат: {dates.length}</summary>
-            <p className="copy-detail-summary">
-              Смен: {ids.length} · Дат: {dates.length} · Новых смен:{" "}
-              {ids.length * dates.length}
-            </p>
             <label className="copy-option">
               <input
                 type="checkbox"

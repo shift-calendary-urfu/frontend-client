@@ -69,6 +69,32 @@ function start(path = "/calendar?workplace=11&month=2026-10") {
   );
   return userEvent.setup();
 }
+async function chooseEmployee(user: ReturnType<typeof start>) {
+  await user.click(await screen.findByRole("button", { name: "Выберите сотрудника" }));
+  const list = screen.getByRole("dialog", { name: "Выберите сотрудника" });
+  expect(within(list).queryByRole("button", { name: /Удалённая/ })).toBeNull();
+  await user.click(within(list).getByRole("button", { name: /Петров Пётр/ }));
+}
+async function chooseTime(
+  user: ReturnType<typeof start>,
+  label: "Начало смены" | "Конец смены",
+  value: string,
+) {
+  await user.click(screen.getByRole("button", { name: new RegExp(`^${label}:`) }));
+  const dialog = within(screen.getByRole("dialog", { name: label }));
+  const [hour, minute] = value.split(":");
+  await user.click(
+    within(dialog.getByRole("listbox", { name: "Часы" })).getByRole("option", {
+      name: hour,
+    }),
+  );
+  await user.click(
+    within(dialog.getByRole("listbox", { name: "Минуты" })).getByRole("option", {
+      name: minute,
+    }),
+  );
+  await user.click(dialog.getByRole("button", { name: "Готово" }));
+}
 function asEmployee(role: "admin" | "employee" | "owner", active = true) {
   fixture.state.me = {
     ...fixture.state.me,
@@ -116,8 +142,8 @@ test("календарь открывается из карточки ПВЗ", a
   );
   await screen.findByRole("heading", { name: "Календарь смен" });
   expect(
-    (screen.getByLabelText("Рабочая точка") as HTMLSelectElement).value,
-  ).toBe("11");
+    screen.getByRole("button", { name: /Рабочая точка: Машинная/ }),
+  ).toBeTruthy();
 });
 test("адрес календаря с завершающим слешем выбирает доступную точку", async () => {
   start("/calendar/?month=2026-10");
@@ -131,7 +157,13 @@ test("права администратора одной точки не пер�
   fixture.state.points[1].owner_id = 99;
   const user = start();
   await screen.findByRole("group", { name: "Дни месяца" });
-  await user.selectOptions(screen.getByLabelText("Рабочая точка"), "12");
+  await user.click(screen.getByRole("button", { name: /^Выбрать ПВЗ/ }));
+  await user.click(
+    within(screen.getByRole("dialog", { name: "Выберите ПВЗ" })).getByRole(
+      "button",
+      { name: /Центральная/ },
+    ),
+  );
   const day = await screen.findByRole("link", {
     name: /^23 октября 2026.*смен нет/,
   });
@@ -171,16 +203,12 @@ test("404 неизвестного эндпоинта не маскируетс�
 });
 test("создание отправляет ID записи сотрудника, время HH:MM и примечание", async () => {
   const user = start("/calendar/2026-10-23/shift/add?workplace=11");
-  const people = await screen.findByLabelText("Сотрудник");
-  expect(screen.queryByText("Удалённая Пётр")).toBeNull();
+  await chooseEmployee(user);
   expect(screen.queryByRole("navigation")).toBeNull();
-  await user.selectOptions(people, "101");
   expect(
-    (screen.getByLabelText("Начало смены") as HTMLInputElement).value,
-  ).toBe("09:00");
-  fireEvent.change(screen.getByLabelText("Конец смены"), {
-    target: { value: "15:30" },
-  });
+    screen.getByRole("button", { name: "Начало смены: 09:00" }),
+  ).toBeTruthy();
+  await chooseTime(user, "Конец смены", "15:30");
   await user.click(screen.getByText("Примечание", { selector: "summary" }));
   await user.type(
     screen.getByLabelText("Примечание (необязательно)"),
@@ -201,39 +229,35 @@ test("создание отправляет ID записи сотрудника
   });
 });
 test.each([
-  ["09:15", "18:00", /шагом 30 минут/],
   ["18:00", "18:00", /позже начала/],
   ["22:00", "06:00", /Ночные смены/],
 ])("невалидное время %s–%s не отправляется", async (from, to, error) => {
-  start("/calendar/2026-10-23/shift/add?workplace=11");
-  await screen.findByLabelText("Сотрудник");
-  fireEvent.change(screen.getByLabelText("Сотрудник"), {
-    target: { value: "101" },
-  });
-  fireEvent.change(screen.getByLabelText("Начало смены"), {
-    target: { value: from },
-  });
-  fireEvent.change(screen.getByLabelText("Конец смены"), {
-    target: { value: to },
-  });
+  const user = start("/calendar/2026-10-23/shift/add?workplace=11");
+  await chooseEmployee(user);
+  await chooseTime(user, "Начало смены", from);
+  await chooseTime(user, "Конец смены", to);
   fireEvent.submit(
     screen.getByRole("button", { name: "Сохранить" }).closest("form")!,
   );
   expect(screen.getByRole("alert").textContent).toMatch(error);
   expect(writes()).toHaveLength(0);
 });
+test("форма требует выбрать сотрудника перед сохранением смены", async () => {
+  const user = start("/calendar/2026-10-23/shift/add?workplace=11");
+  await user.click(await screen.findByRole("button", { name: "Сохранить" }));
+  expect(screen.getByRole("alert").textContent).toBe(
+    "Выберите активного сотрудника этого ПВЗ.",
+  );
+  expect(writes()).toHaveLength(0);
+});
 test("редактирование отправляет только время и сохраняет заметку", async () => {
   const user = start("/calendar/2026-10-23/shift/301/edit?workplace=11");
-  const person = (await screen.findByLabelText(
-    "Сотрудник",
-  )) as HTMLInputElement;
-  expect(person.readOnly).toBe(true);
+  expect(await screen.findByText("Петров Пётр", { selector: ".shift-person-name" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Выберите сотрудника" })).toBeNull();
   expect(
     screen.getByText("Дата смены: 23 октября 2026 г.").getAttribute("datetime"),
   ).toBe("2026-10-23");
-  fireEvent.change(screen.getByLabelText("Начало смены"), {
-    target: { value: "10:30" },
-  });
+  await chooseTime(user, "Начало смены", "10:30");
   await user.click(screen.getByRole("button", { name: "Сохранить" }));
   await screen.findByText("Изменения смены сохранены.");
   expect(writes()[0][0]).toBe("/backend/shifts/301?workplace_id=11");
@@ -456,8 +480,9 @@ test("положение полосы соответствует времени 
   const bar = await screen.findByRole("link", {
     name: "Редактировать смену Петров Пётр 09:00–15:30",
   });
-  expect(parseFloat(bar.style.left)).toBeCloseTo((2 / 17) * 100);
-  expect(parseFloat(bar.style.width)).toBeCloseTo((6.5 / 17) * 100);
+  const segment = bar.querySelector<HTMLElement>(".timeline-segment")!;
+  expect(parseFloat(segment.style.left)).toBeCloseTo((2 / 17) * 100);
+  expect(parseFloat(segment.style.width)).toBeCloseTo((6.5 / 17) * 100);
   expect(timeMinutes("09:30:00")).toBe(570);
   expect(timelineRange([{ start_time: "00:30", end_time: "06:00" }])).toEqual({
     from: 0,
@@ -472,8 +497,9 @@ test("сотрудник может открыть время и примеча�
       name: "Посмотреть смену Петров Пётр 09:00–15:30",
     }),
   );
-  expect(screen.getByText("09:00–15:30")).toBeTruthy();
-  expect(screen.getByText("Открыть ПВЗ")).toBeTruthy();
+  const inspected = within(screen.getByRole("group", { name: "Сведения о смене" }));
+  expect(inspected.getByText("09:00–15:30")).toBeTruthy();
+  expect(inspected.getByText("Открыть ПВЗ")).toBeTruthy();
   expect(
     screen.queryByRole("link", { name: /Редактировать смену/ }),
   ).toBeNull();
@@ -481,7 +507,7 @@ test("сотрудник может открыть время и примеча�
 });
 test("день на фоне обновляется после сохранения новой смены", async () => {
   const user = start("/calendar/2026-10-23/shift/add?workplace=11");
-  await user.selectOptions(await screen.findByLabelText("Сотрудник"), "101");
+  await chooseEmployee(user);
   await user.click(
     screen.getByRole("button", { name: "Сохранить", exact: true }),
   );
@@ -587,7 +613,7 @@ test("ошибка записи сохраняет поля, повторная 
       : original(url, init),
   );
   const user = start("/calendar/2026-10-23/shift/add?workplace=11");
-  await user.selectOptions(await screen.findByLabelText("Сотрудник"), "101");
+  await chooseEmployee(user);
   await user.click(screen.getByText("Примечание", { selector: "summary" }));
   await user.type(
     screen.getByLabelText("Примечание (необязательно)"),
@@ -599,7 +625,7 @@ test("ошибка записи сохраняет поля, повторная 
   fireEvent.submit(form);
   fireEvent.submit(form);
   expect(writes()).toHaveLength(1);
-  expect(screen.getByLabelText("Начало смены").matches(":disabled")).toBe(true);
+  expect(screen.getByRole("button", { name: /^Начало смены/ }).matches(":disabled")).toBe(true);
   await act(async () => release());
   await screen.findByRole("alert");
   expect(
@@ -656,5 +682,6 @@ test("даты учитывают високосные годы и понеде�
   expect(moveMonth("0001-01", -1)).toBeNull();
   expect(moveMonth("9999-12", 1)).toBeNull();
   expect(validMonth("2026-13")).toBe(false);
+  expect(validateTimes("09:15", "18:00")).toMatch(/шагом 30 минут/);
   expect(validateTimes("09:00", "21:00")).toBe("");
 });

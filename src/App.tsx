@@ -5,6 +5,7 @@ import {
   Route,
   Routes,
   Outlet,
+  matchPath,
   useLocation,
   useNavigate,
 } from "react-router-dom";
@@ -19,6 +20,7 @@ import "./style.css";
 import { Field, Notice, BottomNav, LegalLinks } from "./ui";
 import { Workplaces, WorkplaceDetail, WorkplaceEditor } from "./management";
 import { Employees, EmployeeEditor } from "./employees";
+import { useMutation } from "./management-ui";
 import {
   CalendarLayout,
   CalendarMonth,
@@ -70,6 +72,7 @@ function ProfileFields({
           value={value[name] || ""}
           onChange={(v) => set({ ...value, [name]: v })}
           required={name !== "third_name"}
+          placeholder={name === "phone" ? "+7XXXXXXXXXX" : ""}
         />
       ))}
       <p className="sr-only">Телефон: +7XXXXXXXXXX или 8XXXXXXXXXX</p>
@@ -101,15 +104,8 @@ function Login() {
   return (
     <main className="page auth login">
       <header className="login-heading">
-        <h1>
-          Войдите в
-          <br />
-          аккаунт
-        </h1>
-        <p>
-          Чтобы получить доступ
-          <br />к календарю ПВЗ
-        </p>
+        <h1>Войдите в аккаунт</h1>
+        <p>Чтобы получить доступ к календарю ПВЗ</p>
       </header>
       <form onSubmit={submit} aria-busy={busy}>
         <fieldset disabled={busy}>
@@ -119,6 +115,7 @@ function Login() {
               name="email"
               type="email"
               autoComplete="username"
+              placeholder="name@example.com"
               value={email}
               onChange={setEmail}
             />
@@ -127,6 +124,7 @@ function Login() {
               name="password"
               type="password"
               autoComplete="current-password"
+              placeholder=""
               value={password}
               onChange={setPassword}
             />
@@ -193,6 +191,7 @@ function Register() {
               autoComplete="new-password"
               value={password}
               onChange={setPassword}
+              placeholder="Не менее 8 символов"
             />
             <Field
               label="Повторите пароль"
@@ -202,6 +201,7 @@ function Register() {
               autoComplete="new-password"
               value={confirm}
               onChange={setConfirm}
+              placeholder=""
             />
             <p className="sr-only">Не менее 8 символов</p>
           </div>
@@ -218,6 +218,7 @@ function Register() {
 }
 function Settings() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [original, setOriginal] = useState<Profile | null>(null);
   const [data, setData] = useState(empty);
   const [loading, setLoading] = useState(true);
@@ -225,10 +226,6 @@ function Settings() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [passwordOpen, setPasswordOpen] = useState(false);
-  const [oldPassword, setOldPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
   const mounted = useRef(true);
   function fail(e: unknown) {
     if (!hasSession()) {
@@ -263,6 +260,12 @@ function Settings() {
       mounted.current = false;
     };
   }, []);
+  useEffect(() => {
+    if (location.state?.passwordChanged === true) {
+      setMessage("Пароль изменён.");
+      navigate(".", { replace: true, state: null });
+    }
+  }, [location.state, navigate]);
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (busy) return;
@@ -292,27 +295,6 @@ function Settings() {
       setBusy(false);
     }
   }
-  async function changePassword(e: React.FormEvent) {
-    e.preventDefault();
-    if (busy) return;
-    setError("");
-    setMessage("");
-    try {
-      if (newPassword !== confirm)
-        throw new Error("Новые пароли не совпадают.");
-      setBusy(true);
-      await api.password(oldPassword, newPassword);
-      setOldPassword("");
-      setNewPassword("");
-      setConfirm("");
-      setPasswordOpen(false);
-      setMessage("Пароль изменён.");
-    } catch (e) {
-      fail(e);
-    } finally {
-      setBusy(false);
-    }
-  }
   return (
     <>
       <main className="page settings">
@@ -334,11 +316,6 @@ function Settings() {
             <form onSubmit={save} aria-busy={busy}>
               <fieldset disabled={busy}>
                 <ProfileFields value={data} set={setData} />
-                <label className="push">
-                  <input type="checkbox" disabled />
-                  Получать пуш-уведомления
-                </label>
-                <p className="sr-only">Push-уведомления пока недоступны</p>
                 {data.email.trim() !== original?.email && (
                   <p className="hint">
                     После изменения email потребуется повторный вход.
@@ -350,22 +327,20 @@ function Settings() {
               </fieldset>
             </form>
             <div className="settings-actions">
-              {" "}
-              <button
-                className="text-button password-toggle"
-                disabled={busy}
-                aria-expanded={passwordOpen}
-                onClick={() => {
-                  setPasswordOpen(!passwordOpen);
-                  setError("");
-                  setMessage("");
+              <Link
+                className="text-button"
+                to="/settings/password"
+                aria-disabled={busy || undefined}
+                tabIndex={busy ? -1 : undefined}
+                onClick={(event) => {
+                  if (busy) event.preventDefault();
                 }}
               >
                 Изменить пароль
-              </button>{" "}
+              </Link>
               <button
                 className="text-button logout"
-                disabled={busy || loading}
+                disabled={busy}
                 onClick={() => {
                   logout();
                   navigate("/login", { replace: true });
@@ -374,45 +349,6 @@ function Settings() {
                 Выйти из аккаунта
               </button>
             </div>
-            {passwordOpen && (
-              <form className="password-form" onSubmit={changePassword}>
-                <fieldset disabled={busy}>
-                  <h2>Смена пароля</h2>
-                  <div className="fields">
-                    <Field
-                      label="Текущий пароль"
-                      name="old_password"
-                      type="password"
-                      autoComplete="current-password"
-                      minLength={8}
-                      value={oldPassword}
-                      onChange={setOldPassword}
-                    />
-                    <Field
-                      label="Новый пароль"
-                      name="new_password"
-                      type="password"
-                      autoComplete="new-password"
-                      minLength={8}
-                      value={newPassword}
-                      onChange={setNewPassword}
-                    />
-                    <Field
-                      label="Повторите новый пароль"
-                      name="confirm"
-                      type="password"
-                      autoComplete="new-password"
-                      minLength={8}
-                      value={confirm}
-                      onChange={setConfirm}
-                    />
-                  </div>
-                  <button className="primary" type="submit">
-                    Обновить пароль
-                  </button>
-                </fieldset>
-              </form>
-            )}
           </>
         )}
         <Notice text={error} error />
@@ -422,17 +358,108 @@ function Settings() {
     </>
   );
 }
+function ChangePassword() {
+  const navigate = useNavigate();
+  const { busy, error, setError, run } = useMutation();
+  const [oldPassword, setOldPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (busy) return;
+    if (newPassword !== confirm) {
+      setError("Новые пароли не совпадают.");
+      return;
+    }
+    void run(
+      () => api.password(oldPassword, newPassword),
+      () =>
+        navigate("/settings", {
+          replace: true,
+          state: { passwordChanged: true },
+        }),
+    );
+  }
+
+  return (
+    <main className="page password-page">
+      <Link
+        className="back"
+        to="/settings"
+        replace
+        aria-disabled={busy || undefined}
+        tabIndex={busy ? -1 : undefined}
+        onClick={(event) => {
+          if (busy) event.preventDefault();
+        }}
+      >
+        Назад
+      </Link>
+      <h1>Смена пароля</h1>
+      <form className="password-form" onSubmit={submit} aria-busy={busy}>
+        <fieldset disabled={busy}>
+          <div className="fields">
+            <Field
+              label="Текущий пароль"
+              name="old_password"
+              type="password"
+              autoComplete="current-password"
+              minLength={8}
+              value={oldPassword}
+              onChange={setOldPassword}
+              placeholder=""
+            />
+            <Field
+              label="Новый пароль"
+              name="new_password"
+              type="password"
+              autoComplete="new-password"
+              minLength={8}
+              value={newPassword}
+              onChange={setNewPassword}
+              placeholder="Не менее 8 символов"
+            />
+            <Field
+              label="Повторите новый пароль"
+              name="confirm"
+              type="password"
+              autoComplete="new-password"
+              minLength={8}
+              value={confirm}
+              onChange={setConfirm}
+              placeholder=""
+            />
+          </div>
+          <Notice text={error} error />
+          <button className="primary" type="submit">
+            {busy ? "Сохраняем…" : "Обновить пароль"}
+          </button>
+        </fieldset>
+      </form>
+    </main>
+  );
+}
 function ProtectedLayout() {
   const pathname = useLocation().pathname.replace(/\/+$/, "");
   const editor =
-    /^\/workplaces\/(new|[1-9]\d*\/(edit|employees\/(new|[1-9]\d*\/edit)))$/.test(
-      pathname,
-    ) || /^\/calendar\/.+/.test(pathname);
+    [
+      "/workplaces/new",
+      "/workplaces/:id/edit",
+      "/workplaces/:workplaceId/employees/new",
+      "/workplaces/:workplaceId/employees/:employeeId/edit",
+    ].some((path) => matchPath(path, pathname)) ||
+    pathname === "/settings/password" ||
+    /^\/calendar\/.+/.test(pathname);
+  const editorRoute = editor && !pathname.startsWith("/calendar/");
+  useEffect(() => {
+    if (editorRoute && document.scrollingElement)
+      document.scrollingElement.scrollTop = 0;
+  }, [editorRoute, pathname]);
   return hasSession() ? (
-    <>
+    <div className={editor ? undefined : "protected-shell"}>
       <Outlet />
       {!editor && <BottomNav />}
-    </>
+    </div>
   ) : (
     <Navigate to="/login" replace />
   );
@@ -444,6 +471,7 @@ export function App() {
       <Route path="/register" element={<Register />} />
       <Route element={<ProtectedLayout />}>
         <Route path="/settings" element={<Settings />} />
+        <Route path="/settings/password" element={<ChangePassword />} />
         <Route path="/workplaces" element={<Workplaces />} />
         <Route path="/workplaces/new" element={<WorkplaceEditor key="new" />} />
         <Route path="/workplaces/:id" element={<WorkplaceDetail />} />
