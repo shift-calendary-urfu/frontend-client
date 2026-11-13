@@ -20,6 +20,7 @@ import {
   Empty,
   LoadState,
   MarketBadge,
+  WorkplacePicker,
   positiveId,
   useResource,
   useSessionError,
@@ -154,7 +155,7 @@ export function Employees() {
     !!employees.data &&
     canManageEmployees(point, points.data.me.id, employees.data);
   return (
-    <main className="page workspace-page">
+    <main className="page workspace-page employees-page">
       <header className="page-heading">
         <h1>Сотрудники</h1>
         {point && canManage && <AddEmployeeLink workplaceId={point.id} />}
@@ -180,31 +181,11 @@ export function Employees() {
                   <h2>{point.name}</h2>
                 </Link>
               )}
-              <label className="point-picker">
-                <span>Выбрать</span>
-                <select
-                  aria-label="Рабочая точка"
-                  value={point?.id || ""}
-                  onChange={(event) =>
-                    setSearch(
-                      { workplace: event.target.value },
-                      { state: null },
-                    )
-                  }
-                >
-                  {!point && (
-                    <option value="" disabled>
-                      Выберите ПВЗ
-                    </option>
-                  )}
-                  {points.data.items.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                      {item.address ? ` — ${item.address}` : ""}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <WorkplacePicker
+                points={points.data.items}
+                selected={point?.id}
+                change={(id) => setSearch({ workplace: id }, { state: null })}
+              />
             </div>
             {point ? (
               <>
@@ -446,23 +427,28 @@ function EmployeeForm({
           <div className="fields employee-fields">
             {employee ? (
               <>
-                <label className="field">
+                <div className="field">
                   <span>Имя и фамилия</span>
-                  <input
+                  <div
+                    className="readonly-field"
+                    role="textbox"
                     aria-label="Имя и фамилия"
-                    value={fullName(employee)}
-                    readOnly
-                  />
-                </label>
-                <label className="field">
+                    aria-readonly="true"
+                  >
+                    {fullName(employee)}
+                  </div>
+                </div>
+                <div className="field">
                   <span>Телефон</span>
-                  <input
+                  <div
+                    className="readonly-field"
+                    role="textbox"
                     aria-label="Телефон"
-                    type="tel"
-                    value={employee.user.phone}
-                    readOnly
-                  />
-                </label>
+                    aria-readonly="true"
+                  >
+                    {employee.user.phone}
+                  </div>
+                </div>
               </>
             ) : (
               <Field
@@ -473,6 +459,7 @@ function EmployeeForm({
                 maxLength={12}
                 value={phone}
                 onChange={setPhone}
+                placeholder="+7XXXXXXXXXX"
               />
             )}
             <Field
@@ -482,6 +469,7 @@ function EmployeeForm({
               maxLength={100}
               value={position}
               onChange={setPosition}
+              placeholder=""
             />
           </div>
           <p className="hint">

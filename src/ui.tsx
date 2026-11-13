@@ -10,8 +10,7 @@ export function Field({
   autoComplete,
   minLength,
   maxLength,
-  step,
-  caption,
+  placeholder = label,
 }: {
   label: string;
   name: string;
@@ -22,35 +21,22 @@ export function Field({
   autoComplete?: string;
   minLength?: number;
   maxLength?: number;
-  step?: number;
-  caption?: string;
+  placeholder?: string;
 }) {
   return (
     <label className="field">
-      <span>{caption || label}</span>
+      <span>{label}</span>
       <input
         name={name}
         aria-label={label}
         type={type}
-        onClick={
-          type === "time"
-            ? (event) => {
-                try {
-                  event.currentTarget.showPicker?.();
-                } catch {
-                  /* Native keyboard editing remains available. */
-                }
-              }
-            : undefined
-        }
         value={value}
         onChange={(e) => onChange(e.target.value)}
         required={required}
         autoComplete={autoComplete}
         minLength={minLength}
         maxLength={maxLength}
-        step={step}
-        placeholder={label}
+        placeholder={placeholder}
         pattern={name === "phone" ? "(\\+7[0-9]{10}|8[0-9]{10})" : undefined}
         title={name === "phone" ? "+7XXXXXXXXXX или 8XXXXXXXXXX" : undefined}
       />
@@ -100,26 +86,20 @@ export function LegalLinks({ policyOnly = false }: { policyOnly?: boolean }) {
       url: import.meta.env.VITE_PRIVACY_URL,
     },
     { label: "Оферта", url: import.meta.env.VITE_OFFER_URL },
-  ];
+  ].filter(
+    ({ url }, index) =>
+      (!policyOnly || index === 1) &&
+      typeof url === "string" &&
+      /^(https?:\/\/|mailto:)/i.test(url),
+  );
+  if (!links.length) return null;
   return (
     <div className={policyOnly ? "legal-links policy-only" : "legal-links"}>
-      {links
-        .filter((_, i) => !policyOnly || i === 1)
-        .map(({ label, url }) =>
-          typeof url === "string" && /^(https?:\/\/|mailto:)/i.test(url) ? (
-            <a key={label} href={url} target="_blank" rel="noopener noreferrer">
-              {label}
-            </a>
-          ) : (
-            <span
-              key={label}
-              aria-disabled="true"
-              title="Ссылка пока не настроена"
-            >
-              {label}
-            </span>
-          ),
-        )}
+      {links.map(({ label, url }) => (
+        <a key={label} href={url} target="_blank" rel="noopener noreferrer">
+          {label}
+        </a>
+      ))}
     </div>
   );
 }

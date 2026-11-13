@@ -67,13 +67,15 @@ async function loginAndOpenSettings(page: Page) {
 test("защита настроек и неизвестного адреса", async ({ page }) => {
   await page.goto("/settings");
   await expect(page).toHaveURL("/login");
+  await page.goto("/settings/password");
+  await expect(page).toHaveURL("/login");
   await page.goto("/unknown");
   await expect(page).toHaveURL("/login");
 });
 test("вход, профиль, сохранение, перезагрузка и выход", async ({ page }) => {
   await mock(page);
   await loginAndOpenSettings(page);
-  await expect(page.getByRole("checkbox")).toBeDisabled();
+  await expect(page.getByText("Фамилия", { exact: true })).toBeVisible();
   await page.getByLabel("Имя", { exact: true }).fill("Пётр");
   await page.getByRole("button", { name: "Сохранить", exact: true }).click();
   await expect(page.getByRole("status")).toHaveText("Изменения сохранены.");
@@ -83,6 +85,35 @@ test("вход, профиль, сохранение, перезагрузка �
   await expect(page).toHaveURL("/login");
   await page.goBack();
   await expect(page).toHaveURL("/login");
+});
+test("на экране входа видны рамки полей и кнопка на разных телефонах", async ({
+  page,
+}) => {
+  await page.goto("/login");
+  for (const [width, height] of [
+    [320, 568],
+    [360, 640],
+    [430, 932],
+    [740, 350],
+  ]) {
+    await page.setViewportSize({ width, height });
+    await expect(page.getByLabel("Email", { exact: true })).toHaveCSS(
+      "border-top-style",
+      "solid",
+    );
+    await expect(page.getByLabel("Пароль", { exact: true })).toHaveCSS(
+      "border-top-width",
+      "1px",
+    );
+    const pageWidth = (await page.getByRole("main").boundingBox())?.width;
+    expect(pageWidth).toBe(Math.min(width, 600));
+    await page
+      .getByRole("button", { name: "Войти", exact: true })
+      .scrollIntoViewIfNeeded();
+    await expect(
+      page.getByRole("button", { name: "Войти", exact: true }),
+    ).toBeInViewport();
+  }
 });
 test("регистрация: несовпадение паролей, точный body, переход на вход", async ({
   page,
@@ -153,8 +184,12 @@ test("смена пароля и повторный вход после изме
   await mock(page);
   await loginAndOpenSettings(page);
   await page
-    .getByRole("button", { name: "Изменить пароль", exact: true })
+    .getByRole("link", { name: "Изменить пароль", exact: true })
     .click();
+  await expect(page).toHaveURL("/settings/password");
+  await expect(
+    page.getByRole("heading", { name: "Смена пароля" }),
+  ).toBeVisible();
   await page.getByLabel("Текущий пароль", { exact: true }).fill("Password123");
   await page.getByLabel("Новый пароль", { exact: true }).fill("NewPassword123");
   await page
@@ -166,7 +201,10 @@ test("смена пароля и повторный вход после изме
     old_password: "Password123",
     new_password: "NewPassword123",
   });
-  await expect(page.getByRole("status")).toHaveText("Пароль изменён.");
+  await expect(page).toHaveURL("/settings");
+  await expect(
+    page.getByText("Пароль изменён.", { exact: true }),
+  ).toBeVisible();
   await page.getByLabel("Email", { exact: true }).fill("new@example.com");
   await page.getByRole("button", { name: "Сохранить", exact: true }).click();
   await expect(page).toHaveURL("/login");
