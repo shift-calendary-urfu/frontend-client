@@ -4,6 +4,7 @@ import { api, type Employee, type Workplace, type WorkplaceInput } from "./api";
 import { Field, Notice, Icon, AddMark } from "./ui";
 import { TimeField } from "./pickers";
 import { timeLabel } from "./calendar-utils";
+import { reportPath } from "./reports";
 import {
   positiveId,
   useSessionError,
@@ -185,6 +186,11 @@ function WorkplaceDetailContent({ id }: { id: number }) {
           >
             Открыть календарь смен
           </Link>
+          {canManage && (
+            <Link className="detail-link" to={reportPath(id)}>
+              Отчёт по сменам
+            </Link>
+          )}
           {point.owner_id === resource.data?.me.id && (
             <Link className="primary button-link" to={`/workplaces/${id}/edit`}>
               Редактировать ПВЗ

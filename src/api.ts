@@ -72,6 +72,22 @@ export type ShiftDuplicateResult = {
   period: { start_date: string; end_date: string };
   message: string;
 };
+export type EmployeeReport = {
+  employee_id: number;
+  full_name: string;
+  hours_worked: number;
+  full_shifts_count: number;
+  full_shifts_hours: number;
+};
+export type CalendarReport = {
+  workplace_id: number;
+  period: string;
+  total_hours: number;
+  total_shifts: number;
+  employees: EmployeeReport[];
+};
+const excelMediaType =
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 type Tokens = {
   access_token: string;
   refresh_token: string;
@@ -139,6 +155,8 @@ const labels: Record<string, string> = {
   notes: "Примечание",
   dates: "Даты копирования",
   shift_ids: "Смены для копирования",
+  month: "Месяц отчёта",
+  year: "Год отчёта",
 };
 async function parse(response: Response) {
   const data = await response.json().catch(() => null);
@@ -233,6 +251,7 @@ async function request(
   method = "GET",
   body?: unknown,
   auth = true,
+  format: "json" | "excel" = "json",
 ) {
   const current = generation;
   const run = () =>
@@ -253,6 +272,14 @@ async function request(
     response = await run();
   }
   if (auth && response.status === 401) logout();
+  if (format === "excel" && response.ok) {
+    if (response.headers.get("Content-Type")?.split(";")[0].trim() !== excelMediaType)
+      throw new ApiError("Сервер вернул некорректный файл отчёта. Попробуйте скачать его снова.");
+    const file = await response.blob();
+    if (!file.size)
+      throw new ApiError("Сервер вернул пустой файл отчёта. Попробуйте скачать его снова.");
+    return file;
+  }
   return parse(response);
 }
 export const api = {
@@ -275,6 +302,12 @@ export const api = {
     request("/users/me", "PUT", data),
   password: (old_password: string, new_password: string) =>
     request("/users/me/password", "PUT", { old_password, new_password }),
+  reports: {
+    calendar: (workplaceId: number, period: string): Promise<CalendarReport> =>
+      request(reportEndpoint(workplaceId, period)),
+    excel: (workplaceId: number, period: string): Promise<Blob> =>
+      request(reportEndpoint(workplaceId, period, "/excel"), "GET", undefined, true, "excel"),
+  },
   workplaces: {
     list: (): Promise<Workplace[]> => request("/workplaces/"),
     get: (id: number): Promise<WorkplaceDetailData> =>
@@ -360,6 +393,16 @@ export const api = {
       request(`/shifts/duplicate/?workplace_id=${workplaceId}`, "POST", data),
   },
 };
+
+function reportEndpoint(workplaceId: number, period: string, suffix = "") {
+  const [year, month] = period.split("-").map(Number);
+  const query = new URLSearchParams({
+    workplace_id: String(workplaceId),
+    month: String(month),
+    year: String(year),
+  });
+  return `/shifts/reports/calendar${suffix}?${query}`;
+}
 
 // This backend reports an empty period/day as 404. Other 404s remain errors.
 async function emptyShifts<T>(load: () => Promise<T>, empty: T): Promise<T> {
