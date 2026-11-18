@@ -20,6 +20,7 @@ import {
   useResource,
 } from "./management-ui";
 import { Notice } from "./ui";
+import { reportPath } from "./reports";
 import { ChoicePicker, TimeField } from "./pickers";
 import {
   calendarPath,
@@ -261,6 +262,11 @@ export function CalendarMonth({
   return (
     <>
       {!background && <RouteMessage />}
+      {!background && canManage && (
+        <div className="calendar-report-action">
+          <Link to={reportPath(point.id, month)}>Отчёт за месяц</Link>
+        </div>
+      )}
       <Weekdays />
       <MonthNavigation
         month={month}
