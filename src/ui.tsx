@@ -108,24 +108,17 @@ export function BottomNav() {
     { label: "ПВЗ", icon: "home", to: "/workplaces" },
     { label: "Сотрудники", icon: "people", to: "/employees" },
     { label: "Календарь", icon: "calendar", to: "/calendar" },
-    { label: "Чаты", icon: "chat" },
+    { label: "Чаты", icon: "chat", to: "/chats" },
     { label: "Настройки", icon: "settings", to: "/settings" },
   ];
   return (
     <nav className="bottom-nav" aria-label="Разделы приложения">
-      {entries.map((item) =>
-        item.to ? (
-          <NavLink key={item.icon} to={item.to}>
-            <Icon name={item.icon} />
-            <span>{item.label}</span>
-          </NavLink>
-        ) : (
-          <button key={item.icon} disabled title="Раздел пока недоступен">
-            <Icon name={item.icon} />
-            <span>{item.label}</span>
-          </button>
-        ),
-      )}
+      {entries.map((item) => (
+        <NavLink key={item.icon} to={item.to}>
+          <Icon name={item.icon} />
+          <span>{item.label}</span>
+        </NavLink>
+      ))}
     </nav>
   );
 }

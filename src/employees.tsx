@@ -22,6 +22,7 @@ import {
   MarketBadge,
   WorkplacePicker,
   positiveId,
+  useMutation,
   useResource,
   useSessionError,
 } from "./management-ui";
@@ -91,17 +92,32 @@ export function EmployeeRows({
   workplaceId,
   editable = false,
   from = "employees",
+  currentUserId,
 }: {
   employees: Employee[];
   workplaceId: number;
   editable?: boolean;
   from?: Origin;
+  currentUserId?: number;
 }) {
+  const navigate = useNavigate();
+  const chat = useMutation();
+  const [recipient, setRecipient] = useState<number>();
+  function openChat(userId: number) {
+    setRecipient(userId);
+    void chat.run(
+      () => api.chats.direct(userId),
+      ({ chat_id }) => navigate(`/chats/${chat_id}`),
+    );
+  }
   const active = employees.filter(
     (employee) => employee.is_active && employee.workplace_id === workplaceId,
   );
   return active.length ? (
-    <ul className="employee-list" aria-label="Список сотрудников">
+    <ul
+      className={`employee-list${currentUserId === undefined ? "" : " employee-list-with-chats"}`}
+      aria-label="Список сотрудников"
+    >
       {active.map((employee) => (
         <li key={employee.id}>
           <div>
@@ -123,6 +139,19 @@ export function EmployeeRows({
               <Icon name="edit" />
             </Link>
           )}
+          {currentUserId !== undefined && employee.user_id !== currentUserId && (
+            <button
+              className="employee-write"
+              type="button"
+              aria-label={`Написать: ${fullName(employee)}`}
+              disabled={chat.busy}
+              onClick={() => openChat(employee.user_id)}
+            >
+              <Icon name="chat" />
+              {chat.busy && recipient === employee.user_id ? "Открываем…" : "Написать"}
+            </button>
+          )}
+          {recipient === employee.user_id && <Notice text={chat.error} error />}
         </li>
       ))}
     </ul>
@@ -192,9 +221,11 @@ export function Employees() {
                 <LoadState {...employees} />
                 {employees.data && (
                   <EmployeeRows
+                    key={point.id}
                     employees={employees.data}
                     workplaceId={point.id}
                     editable={canManage}
+                    currentUserId={points.data.me.id}
                   />
                 )}
               </>

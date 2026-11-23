@@ -9,6 +9,7 @@ export default defineConfig(({ mode }) => {
         "/backend": {
           target: env.BACKEND_URL || "http://127.0.0.1:8000",
           changeOrigin: true,
+          ws: true,
           rewrite: (path: string) => path.replace(/^\/backend/, ""),
         },
       },
