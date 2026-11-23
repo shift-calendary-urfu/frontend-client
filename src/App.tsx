@@ -22,6 +22,7 @@ import { Workplaces, WorkplaceDetail, WorkplaceEditor } from "./management";
 import { Employees, EmployeeEditor } from "./employees";
 import { useMutation } from "./management-ui";
 import { MonthlyReports } from "./reports";
+import { Chats } from "./chats";
 import {
   CalendarLayout,
   CalendarMonth,
@@ -481,6 +482,7 @@ export function App() {
           element={<WorkplaceEditor key="edit" />}
         />
         <Route path="/employees" element={<Employees />} />
+        <Route path="/chats/:chatId?" element={<Chats />} />
         <Route path="/reports/monthly" element={<MonthlyReports />} />
         <Route path="/calendar" element={<CalendarLayout />}>
           <Route index element={<CalendarMonth />} />

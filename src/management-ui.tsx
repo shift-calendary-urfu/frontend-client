@@ -1,7 +1,7 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { hasSession, type Workplace } from "./api";
+import { ApiError, hasSession, type Workplace } from "./api";
 import { Notice } from "./ui";
 import { logos } from "./assets";
 import { ChoicePicker } from "./pickers";
@@ -63,7 +63,11 @@ export function useMutation() {
   return { busy, error, setError, run };
 }
 // key identifies all inputs of the request. Ignore responses from a previous route or retry.
-export function useResource<T>(key: string, load: () => Promise<T>) {
+export function useResource<T>(
+  key: string,
+  load: () => Promise<T>,
+  { keepData = false, refreshVersion = 0 } = {},
+) {
   const [state, setState] = useState<{
     key: string;
     data: T | null;
@@ -71,29 +75,42 @@ export function useResource<T>(key: string, load: () => Promise<T>) {
     error: string;
   }>({ key, data: null, loading: true, error: "" });
   const [attempt, setAttempt] = useState(0);
+  const retry = useCallback(() => setAttempt((value) => value + 1), []);
   const fail = useSessionError();
   useEffect(() => {
     let active = true;
-    setState({ key, data: null, loading: true, error: "" });
+    setState((previous) => ({
+      key,
+      data: keepData && previous.key === key ? previous.data : null,
+      loading: true,
+      error: "",
+    }));
     load()
       .then((data) => {
         if (active) setState({ key, data, loading: false, error: "" });
       })
       .catch((error) => {
-        if (active)
-          setState({ key, data: null, loading: false, error: fail(error) });
+        if (!active) return;
+        const message = fail(error);
+        const transient = error instanceof ApiError && (error.status === 0 || error.status >= 500);
+        setState((previous) => ({
+          key,
+          data: keepData && transient && hasSession() && previous.key === key ? previous.data : null,
+          loading: false,
+          error: message,
+        }));
       });
     return () => {
       active = false;
     };
-  }, [key, attempt]);
+  }, [key, attempt, refreshVersion]);
   const visible =
     state.key === key ? state : { data: null, loading: true, error: "" };
   return {
     data: visible.data,
     loading: visible.loading,
     error: visible.error,
-    retry: () => setAttempt((value) => value + 1),
+    retry,
   };
 }
 export function LoadState({

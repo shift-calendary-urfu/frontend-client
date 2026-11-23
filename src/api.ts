@@ -86,6 +86,24 @@ export type CalendarReport = {
   total_shifts: number;
   employees: EmployeeReport[];
 };
+export type ChatSummary = {
+  id: number;
+  type: "workplace" | "direct";
+  workplace_id: number | null;
+  title: string;
+  is_readonly: boolean;
+  unread_count: number;
+  last_message_text: string | null;
+  last_message_at: string | null;
+};
+export type ChatMessage = {
+  id: number;
+  chat_id: number;
+  sender_id: number | null;
+  sender_name: string;
+  text: string;
+  created_at: string;
+};
 const excelMediaType =
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 type Tokens = {
@@ -282,6 +300,31 @@ async function request(
   }
   return parse(response);
 }
+
+function connectChat() {
+  const current = generation;
+  const url = new URL(`${base}/chats/ws`, window.location.href);
+  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+  const socket = new WebSocket(url);
+  let usedToken: string | undefined;
+  socket.addEventListener("open", () => {
+    if (!tokens || generation !== current) {
+      socket.close();
+      return;
+    }
+    usedToken = tokens.access_token;
+    socket.send(JSON.stringify({ type: "auth", token: usedToken }));
+  });
+  return {
+    socket,
+    async renewAuth() {
+      if (!tokens || generation !== current)
+        throw new ApiError("Сессия истекла. Войдите снова.", 401);
+      if (tokens.access_token === usedToken) await refresh();
+    },
+  };
+}
+
 export const api = {
   async login(email: string, password: string) {
     const response = await send("/auth/login", {
@@ -302,6 +345,19 @@ export const api = {
     request("/users/me", "PUT", data),
   password: (old_password: string, new_password: string) =>
     request("/users/me/password", "PUT", { old_password, new_password }),
+  chats: {
+    list: (): Promise<ChatSummary[]> => request("/chats/"),
+    direct: (userId: number): Promise<{ chat_id: number }> =>
+      request("/chats/direct", "POST", { target_user_id: userId }),
+    messages: (chatId: number, limit: number, beforeId?: number): Promise<{ messages: ChatMessage[] }> => {
+      const query = new URLSearchParams({ limit: String(limit) });
+      if (beforeId !== undefined) query.set("before_id", String(beforeId));
+      return request(`/chats/${chatId}/messages?${query}`);
+    },
+    markRead: (chatId: number): Promise<{ last_read_message_id: number }> =>
+      request(`/chats/${chatId}/mark`, "POST"),
+    connect: connectChat,
+  },
   reports: {
     calendar: (workplaceId: number, period: string): Promise<CalendarReport> =>
       request(reportEndpoint(workplaceId, period)),
