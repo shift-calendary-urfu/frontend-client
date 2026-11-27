@@ -255,8 +255,8 @@ test("фильтр и колесо работают на узком и коро�
   fixture.state.points[1].address =
     "Екатеринбург, улица Академика Бардина, дом 40, корпус 2, вход со двора";
   await open(page, "/employees?workplace=11", undefined, fixture);
-  await page.getByRole("button", { name: /^Выбрать ПВЗ/ }).click();
-  const points = page.getByRole("dialog", { name: "Выберите ПВЗ" });
+  await page.getByRole("button", { name: /^Выбрать точку/ }).click();
+  const points = page.getByRole("dialog", { name: "Выберите точку" });
   await expect(
     points.getByRole("button", { name: /Машинная/, pressed: true }),
   ).toBeVisible();
@@ -264,7 +264,7 @@ test("фильтр и колесо работают на узком и коро�
   await expect(page).toHaveURL("/employees?workplace=12");
 
   await page.goto("/calendar?workplace=11&month=2026-10");
-  await page.getByRole("button", { name: /^Выбрать ПВЗ/ }).click();
+  await page.getByRole("button", { name: /^Выбрать точку/ }).click();
   await expect(points.getByText(fixture.state.points[1].address)).toBeVisible();
   await points.getByRole("button", { name: /Центральная/ }).click();
   await expect(page).toHaveURL("/calendar?workplace=12&month=2026-10");

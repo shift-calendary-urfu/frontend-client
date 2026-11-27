@@ -138,7 +138,7 @@ test.each([
   start();
   if (allowed) await result();
   else {
-    await screen.findByText(/Отчёт по ПВЗ доступен владельцу/);
+    await screen.findByText(/Отчёт по точке доступен владельцу/);
     expect(reportCalls()).toHaveLength(0);
     expect(
       screen.queryByRole("button", { name: "Сформировать отчёт" }),
@@ -148,7 +148,7 @@ test.each([
 
 test("неизвестный ПВЗ не запрашивает чужой отчёт", async () => {
   start("/reports/monthly?workplace=999&month=2026-10");
-  await screen.findByText("Эта точка недоступна. Выберите ПВЗ из списка.");
+  await screen.findByText("Эта точка недоступна. Выберите точку из списка.");
   expect(reportCalls()).toHaveLength(0);
   expect(fetchMock.mock.calls.some(([url]) => url.includes("/999"))).toBe(
     false,

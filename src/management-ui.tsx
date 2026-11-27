@@ -5,6 +5,7 @@ import { ApiError, hasSession, type Workplace } from "./api";
 import { Notice } from "./ui";
 import { logos } from "./assets";
 import { ChoicePicker } from "./pickers";
+import { workplaceTypeName } from "./workplace-types";
 import { lockBodyScroll } from "./scroll-lock";
 
 export function positiveId(value: string | undefined | null) {
@@ -136,18 +137,19 @@ export function LoadState({
   ) : null;
 }
 export function MarketBadge({ type }: { type: string }) {
-  return logos[type] ? (
+  const logo = Object.prototype.hasOwnProperty.call(logos, type)
+    ? logos[type]
+    : undefined;
+  return logo ? (
     <img
       className="market-badge"
-      src={logos[type]}
+      src={logo}
       alt=""
       width="40"
       height="40"
     />
   ) : (
-    <span className="market-badge market-other" aria-hidden="true">
-      ПВЗ
-    </span>
+    <span className="market-badge market-other" aria-hidden="true" />
   );
 }
 export function WorkplacePicker({
@@ -163,7 +165,7 @@ export function WorkplacePicker({
 }) {
   return (
     <ChoicePicker
-      title="Выберите ПВЗ"
+      title="Выберите точку"
       value={selected ? String(selected) : ""}
       onChange={change}
       disabled={disabled}
@@ -171,7 +173,9 @@ export function WorkplacePicker({
       options={points.map((point) => ({
         value: String(point.id),
         title: point.name,
-        description: point.address || undefined,
+        description: [workplaceTypeName(point.workplace_type), point.address]
+          .filter(Boolean)
+          .join(" · "),
         icon: <MarketBadge type={point.workplace_type} />,
       }))}
     />

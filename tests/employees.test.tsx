@@ -374,7 +374,7 @@ test.each(["/employees?workplace=11", "/workplaces/11"])(
     expect(screen.getByRole("alertdialog")).toBe(dialog);
     expect(document.activeElement).toBe(heading);
     await act(async () => release());
-    await screen.findByText("Сотрудник удалён из ПВЗ.");
+    await screen.findByText("Сотрудник удалён из рабочей точки.");
     await screen.findByText("Смирнова Анна");
     expect(screen.queryByText("Петров Пётр")).toBeNull();
     expect(writes()).toHaveLength(1);
@@ -393,7 +393,7 @@ test("администратор управляет сотрудниками, н
       name: "Редактировать сотрудника Смирнова Анна",
     }),
   ).toBeTruthy();
-  expect(screen.queryByRole("link", { name: "Редактировать ПВЗ" })).toBeNull();
+  expect(screen.queryByRole("link", { name: "Редактировать точку" })).toBeNull();
 });
 test.each(["employee", "owner"] as const)(
   "роль записи %s без владения ПВЗ не даёт права управления",
@@ -422,7 +422,7 @@ test("неактивный администратор не получает фо
   asManager("admin", false);
   start("/workplaces/11/employees/new");
   await screen.findByText(
-    "Управлять сотрудниками может только владелец или администратор этого ПВЗ.",
+    "Управлять сотрудниками может только владелец или администратор этой точки.",
   );
   expect(screen.queryByLabelText("Телефон")).toBeNull();
   expect(writes()).toHaveLength(0);
@@ -527,7 +527,7 @@ test("удаливший себя администратор не остаётс
       exact: true,
     }),
   );
-  await screen.findByText("Нет доступных ПВЗ");
+  await screen.findByText("Нет доступных точек");
   expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
     "Сотрудники",
   );

@@ -17,7 +17,7 @@ import {
   type ProfileInput,
 } from "./api";
 import "./style.css";
-import { Field, Notice, BottomNav, LegalLinks } from "./ui";
+import { AppNavigation, Field, LegalLinks, Notice } from "./ui";
 import { Workplaces, WorkplaceDetail, WorkplaceEditor } from "./management";
 import { Employees, EmployeeEditor } from "./employees";
 import { useMutation } from "./management-ui";
@@ -107,7 +107,7 @@ function Login() {
     <main className="page auth login">
       <header className="login-heading">
         <h1>Войдите в аккаунт</h1>
-        <p>Чтобы получить доступ к календарю ПВЗ</p>
+        <p>Чтобы получить доступ к календарю смен</p>
       </header>
       <form onSubmit={submit} aria-busy={busy}>
         <fieldset disabled={busy}>
@@ -453,14 +453,23 @@ function ProtectedLayout() {
     pathname === "/settings/password" ||
     /^\/calendar\/.+/.test(pathname);
   const editorRoute = editor && !pathname.startsWith("/calendar/");
+  const calendarDialog = editor && !editorRoute;
   useEffect(() => {
     if (editorRoute && document.scrollingElement)
       document.scrollingElement.scrollTop = 0;
   }, [editorRoute, pathname]);
   return hasSession() ? (
-    <div className={editor ? undefined : "protected-shell"}>
+    <div
+      className={
+        editorRoute
+          ? "editor-shell"
+          : calendarDialog
+            ? "calendar-dialog-shell"
+            : "protected-shell"
+      }
+    >
       <Outlet />
-      {!editor && <BottomNav />}
+      {!editorRoute && <AppNavigation inactive={calendarDialog} />}
     </div>
   ) : (
     <Navigate to="/login" replace />

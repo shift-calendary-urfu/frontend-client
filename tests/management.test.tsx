@@ -131,11 +131,11 @@ test("ПВЗ, сотрудники, календарь и чаты доступ�
   const user = start("/settings");
   await screen.findByDisplayValue("Иван");
   const nav = screen.getByRole("navigation");
-  await user.click(within(nav).getByRole("link", { name: "ПВЗ", exact: true }));
-  await screen.findByRole("link", { name: /^Открыть ПВЗ Машинная/ });
+  await user.click(within(nav).getByRole("link", { name: "Точки", exact: true }));
+  await screen.findByRole("link", { name: /^Открыть точку Машинная/ });
   expect(
     within(nav)
-      .getByRole("link", { name: "ПВЗ", exact: true })
+      .getByRole("link", { name: "Точки", exact: true })
       .getAttribute("aria-current"),
   ).toBe("page");
   expect(
@@ -149,17 +149,17 @@ test("ПВЗ, сотрудники, календарь и чаты доступ�
 });
 test("кнопки редактирования есть только у владельца, просмотр содержит данные и сотрудников", async () => {
   const user = start();
-  await screen.findByRole("link", { name: /^Открыть ПВЗ Машинная/ });
-  const card = within(screen.getByRole("link", { name: /^Открыть ПВЗ Машинная/ }));
+  await screen.findByRole("link", { name: /^Открыть точку Машинная/ });
+  const card = within(screen.getByRole("link", { name: /^Открыть точку Машинная/ }));
   expect(card.getByText("Машинная", { exact: true })).toBeTruthy();
   expect(card.getByText("09:00–21:00")).toBeTruthy();
   expect(
-    screen.getByRole("link", { name: "Редактировать ПВЗ Машинная" }),
+    screen.getByRole("link", { name: "Редактировать точку Машинная" }),
   ).toBeTruthy();
   expect(
-    screen.queryByRole("link", { name: "Редактировать ПВЗ Центральная" }),
+    screen.queryByRole("link", { name: "Редактировать точку Центральная" }),
   ).toBeNull();
-  await user.click(screen.getByRole("link", { name: /^Открыть ПВЗ Машинная/ }));
+  await user.click(screen.getByRole("link", { name: /^Открыть точку Машинная/ }));
   await screen.findByRole("heading", { name: "Машинная" });
   await screen.findByText("Петров Пётр");
   expect(screen.getByText("Администратор")).toBeTruthy();
@@ -168,20 +168,30 @@ test("кнопки редактирования есть только у вла�
 test("пустой список предлагает создать точку", async () => {
   points = [];
   start();
-  await screen.findByText("У вас пока нет ПВЗ");
+  await screen.findByText("У вас пока нет рабочих точек");
   expect(screen.queryByRole("alert")).toBeNull();
 });
-test("создание отправляет правильный JSON без owner_id и пустые optional как null", async () => {
+test("новый тип точки выбирается поиском и сохраняется в существующем JSON", async () => {
   const user = start("/workplaces/new");
-  await user.type(screen.getByLabelText("Название ПВЗ"), "  Новая точка  ");
+  await user.type(screen.getByLabelText("Название точки"), "  Новая точка  ");
   await user.type(screen.getByLabelText("Адрес"), "  Мира, 10  ");
-  await user.click(screen.getByLabelText("Wildberries"));
+  await user.click(
+    screen.getByRole("button", { name: "Тип рабочей точки. Другой тип" }),
+  );
+  const picker = within(screen.getByRole("dialog", { name: "Тип рабочей точки" }));
+  expect(picker.getByRole("button", { name: "Заправка (АЗС)" })).toBeTruthy();
+  expect(picker.getByRole("button", { name: "Продуктовый магазин" })).toBeTruthy();
+  expect(picker.getByRole("button", { name: "Магазин одежды" })).toBeTruthy();
+  expect(picker.getByRole("button", { name: "Wildberries" })).toBeTruthy();
+  await user.type(picker.getByRole("searchbox", { name: "Найти тип точки" }), "ТАБАЧ");
+  expect(picker.queryByRole("button", { name: "Ozon" })).toBeNull();
+  await user.click(picker.getByRole("button", { name: "Табачный магазин" }));
   await user.click(
     screen.getByRole("button", { name: "Сохранить", exact: true }),
   );
-  await screen.findByText("ПВЗ создан.");
+  await screen.findByText("Точка создана.");
   await screen.findByRole("link", {
-    name: "Открыть ПВЗ Новая точка: Мира, 10",
+    name: "Открыть точку Новая точка: Мира, 10",
   });
   expect(writes()).toHaveLength(1);
   expect(writes()[0][0]).toBe("/backend/workplaces/");
@@ -190,14 +200,14 @@ test("создание отправляет правильный JSON без own
     address: "Мира, 10",
     phone: null,
     description: null,
-    workplace_type: "wildberries",
+    workplace_type: "tobacco_shop",
     work_start_time: "09:00",
     work_end_time: "21:00",
   });
 });
 test("равные и обратные часы работы не отправляются", async () => {
   const user = start("/workplaces/new");
-  await user.type(screen.getByLabelText("Название ПВЗ"), "Точка");
+  await user.type(screen.getByLabelText("Название точки"), "Точка");
   await user.type(screen.getByLabelText("Адрес"), "Мира, 10");
   await user.click(screen.getByRole("button", { name: /^Конец работы:/ }));
   const time = within(screen.getByRole("dialog", { name: "Конец работы" }));
@@ -218,12 +228,12 @@ test("редактирование заполняет форму и отправ
   const user = start("/workplaces/11/edit");
   await screen.findByDisplayValue("Машинная");
   expect(screen.getByRole("button", { name: "Начало работы: 09:00" })).toBeTruthy();
-  await user.clear(screen.getByLabelText("Название ПВЗ"));
-  await user.type(screen.getByLabelText("Название ПВЗ"), "Новое имя");
+  await user.clear(screen.getByLabelText("Название точки"));
+  await user.type(screen.getByLabelText("Название точки"), "Новое имя");
   await user.click(
     screen.getByRole("button", { name: "Сохранить", exact: true }),
   );
-  await screen.findByText("Изменения ПВЗ сохранены.");
+  await screen.findByText("Изменения точки сохранены.");
   expect(writes()[0][0]).toBe("/backend/workplaces/11");
   expect(writes()[0][1].method).toBe("PUT");
   const data = JSON.parse(writes()[0][1].body);
@@ -238,7 +248,7 @@ test("прямой URL редактирования чужой точки не �
     screen.queryByRole("button", { name: "Сохранить", exact: true }),
   ).toBeNull();
   expect(
-    screen.queryByRole("button", { name: "Удалить ПВЗ", exact: true }),
+    screen.queryByRole("button", { name: "Удалить точку", exact: true }),
   ).toBeNull();
   expect(writes()).toHaveLength(0);
 });
@@ -246,7 +256,7 @@ test("удаление требует подтверждения, отмена �
   const user = start("/workplaces/11/edit");
   await screen.findByDisplayValue("Машинная");
   const remove = screen.getByRole("button", {
-    name: "Удалить ПВЗ",
+    name: "Удалить точку",
     exact: true,
   });
   await user.click(remove);
@@ -264,7 +274,7 @@ test("удаление требует подтверждения, отмена �
       exact: true,
     }),
   );
-  await screen.findByText("ПВЗ удалён.");
+  await screen.findByText("Точка удалена.");
   expect(writes()).toHaveLength(1);
   expect(writes()[0][1].method).toBe("DELETE");
   expect(screen.queryByText("Машинная")).toBeNull();
@@ -272,9 +282,9 @@ test("удаление требует подтверждения, отмена �
 test("сотрудники загружаются только выбранного ПВЗ; записи по employee API не вызываются", async () => {
   const user = start("/employees?workplace=11");
   await screen.findByText("Петров Пётр");
-  await user.click(screen.getByRole("button", { name: /^Выбрать ПВЗ/ }));
+  await user.click(screen.getByRole("button", { name: /^Выбрать точку/ }));
   await user.click(
-    within(screen.getByRole("dialog", { name: "Выберите ПВЗ" })).getByRole(
+    within(screen.getByRole("dialog", { name: "Выберите точку" })).getByRole(
       "button",
       { name: /Центральная/ },
     ),
@@ -301,11 +311,11 @@ test("просроченный ответ от предыдущего ПВЗ н�
       : original(url, init),
   );
   const user = start("/employees?workplace=11");
-  const picker = await screen.findByRole("button", { name: /^Выбрать ПВЗ/ });
+  const picker = await screen.findByRole("button", { name: /^Выбрать точку/ });
   await waitFor(() => expect(resolve).toBeTypeOf("function"));
   await user.click(picker);
   await user.click(
-    within(screen.getByRole("dialog", { name: "Выберите ПВЗ" })).getByRole(
+    within(screen.getByRole("dialog", { name: "Выберите точку" })).getByRole(
       "button",
       { name: /Центральная/ },
     ),
@@ -316,7 +326,7 @@ test("просроченный ответ от предыдущего ПВЗ н�
 });
 test("недоступная точка в query не запрашивает чужих сотрудников", async () => {
   start("/employees?workplace=999");
-  await screen.findByText("Эта точка недоступна. Выберите ПВЗ из списка.");
+  await screen.findByText("Эта точка недоступна. Выберите точку из списка.");
   expect(fetchMock.mock.calls.some(([url]) => url.includes("/999"))).toBe(
     false,
   );
@@ -330,14 +340,14 @@ test("ошибка списка показывает повтор, а ошибк
   );
   const user = start();
   await screen.findByRole("alert");
-  expect(screen.queryByText("У вас пока нет ПВЗ")).toBeNull();
+  expect(screen.queryByText("У вас пока нет рабочих точек")).toBeNull();
   fetchMock.mockImplementation(original);
   await user.click(
     screen.getByRole("button", { name: "Повторить", exact: true }),
   );
-  await screen.findByRole("link", { name: /^Открыть ПВЗ Машинная/ });
-  await user.click(screen.getByRole("link", { name: "Добавить ПВЗ" }));
-  await user.type(screen.getByLabelText("Название ПВЗ"), "Не терять");
+  await screen.findByRole("link", { name: /^Открыть точку Машинная/ });
+  await user.click(screen.getByRole("link", { name: "Добавить точку" }));
+  await user.type(screen.getByLabelText("Название точки"), "Не терять");
   await user.type(screen.getByLabelText("Адрес"), "Мира, 10");
   fetchMock.mockImplementation((url, init) =>
     init.method === "POST"
@@ -349,12 +359,12 @@ test("ошибка списка показывает повтор, а ошибк
   );
   await screen.findByRole("alert");
   expect(
-    (screen.getByLabelText("Название ПВЗ") as HTMLInputElement).value,
+    (screen.getByLabelText("Название точки") as HTMLInputElement).value,
   ).toBe("Не терять");
 });
 test("неверный ID не отправляет запрос, прямой маршрут требует сессию", async () => {
   start("/workplaces/not-a-number");
-  expect(screen.getByRole("heading", { name: "ПВЗ не найден" })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Точка не найдена" })).toBeTruthy();
   expect(fetchMock).not.toHaveBeenCalled();
   cleanup();
   logout();
@@ -372,7 +382,7 @@ test("раскрываемые дополнительные поля ПВЗ со
   await user.click(
     screen.getByRole("button", { name: "Сохранить", exact: true }),
   );
-  await screen.findByText("Изменения ПВЗ сохранены.");
+  await screen.findByText("Изменения точки сохранены.");
   const body = JSON.parse(writes()[0][1].body);
   expect(body.phone).toBe("81234567890");
   expect(body.description).toBe("Вход со двора");

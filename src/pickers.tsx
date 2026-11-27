@@ -16,12 +16,14 @@ function PickerDialog({
   children,
   actions,
   onOpen,
+  compact = false,
 }: {
   title: string;
   close: () => void;
   children: ReactNode;
   actions?: ReactNode;
   onOpen?: () => void;
+  compact?: boolean;
 }) {
   const titleId = useId();
   const dialog = useRef<HTMLDialogElement>(null);
@@ -42,7 +44,7 @@ function PickerDialog({
   return createPortal(
     <dialog
       ref={dialog}
-      className="picker-dialog"
+      className={`picker-dialog${compact ? " picker-dialog-compact" : ""}`}
       aria-labelledby={titleId}
       aria-modal="true"
       onKeyDown={(event) => event.stopPropagation()}
@@ -74,6 +76,14 @@ function PickerDialog({
   );
 }
 
+type ChoiceOption = {
+  value: string;
+  title: string;
+  description?: string;
+  icon?: ReactNode;
+  group?: string;
+};
+
 export function ChoicePicker({
   title,
   value,
@@ -84,67 +94,118 @@ export function ChoicePicker({
 }: {
   title: string;
   value: string;
-  options: {
-    value: string;
-    title: string;
-    description?: string;
-    icon?: ReactNode;
-  }[];
+  options: ChoiceOption[];
   onChange: (value: string) => void;
-  variant: "workplace" | "employee";
+  variant: "workplace" | "employee" | "workplace-type";
   disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const selected = options.find((option) => option.value === value);
   const workplace = variant === "workplace";
+  const typePicker = variant === "workplace-type";
+  const triggerClass = {
+    workplace: "point-picker",
+    employee: "employee-picker",
+    "workplace-type": "market-picker",
+  }[variant];
+  const search = query.trim().toLocaleLowerCase("ru");
+  const groups = new Map<string, ChoiceOption[]>();
+  if (open) {
+    for (const option of options) {
+      if (typePicker && !option.title.toLocaleLowerCase("ru").includes(search))
+        continue;
+      const group = option.group ?? "";
+      const groupOptions = groups.get(group);
+      if (groupOptions) groupOptions.push(option);
+      else groups.set(group, [option]);
+    }
+  }
+  function close() {
+    setOpen(false);
+    setQuery("");
+  }
   return (
     <>
       <button
         type="button"
-        className={`picker-trigger ${workplace ? "point-picker" : "employee-picker"}`}
+        className={`picker-trigger ${triggerClass}`}
         aria-label={
           workplace && selected
-            ? `Выбрать ПВЗ. Рабочая точка: ${selected.title}`
-            : undefined
+            ? `Выбрать точку. Рабочая точка: ${selected.title}`
+            : typePicker && selected
+              ? `${title}. ${selected.title}`
+              : undefined
         }
         aria-haspopup="dialog"
         aria-expanded={open}
         disabled={disabled}
         onClick={() => setOpen(true)}
       >
-        <span>
-          {workplace && selected ? "Выбрать ПВЗ" : selected?.title || title}
+        {typePicker && selected?.icon}
+        <span className="picker-trigger-title">
+          {typePicker ? (
+            <>
+              <span className="market-picker-label">{title}</span>
+              {selected && <strong>{selected.title}</strong>}
+            </>
+          ) : workplace && selected ? (
+            "Выбрать точку"
+          ) : (
+            selected?.title || title
+          )}
         </span>
         <span className="picker-chevron" aria-hidden="true" />
       </button>
       {open && (
-        <PickerDialog title={title} close={() => setOpen(false)}>
-          <ul className="choice-list">
-            {options.map((option) => (
-              <li key={option.value}>
-                <button
-                  type="button"
-                  className="choice-option"
-                  aria-pressed={option.value === value}
-                  onClick={() => {
-                    setOpen(false);
-                    onChange(option.value);
-                  }}
-                >
-                  {option.icon}
-                  <span className="choice-option-text">
-                    <strong>{option.title}</strong>
-                    {option.description && <span>{option.description}</span>}
-                  </span>
-                  {option.value === value && (
-                    <span className="choice-check" aria-hidden="true">
-                      ✓
-                    </span>
-                  )}
-                </button>
-              </li>
-            ))}
-          </ul>
+        <PickerDialog title={title} close={close} compact={typePicker}>
+          {typePicker && (
+            <div className="choice-search">
+              <input
+                type="search"
+                value={query}
+                aria-label="Найти тип точки"
+                placeholder="Найти тип точки"
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </div>
+          )}
+          {typePicker && groups.size === 0 && (
+            <p role="status">Типы не найдены.</p>
+          )}
+          {Array.from(groups, ([group, items]) => (
+            <div className={typePicker ? "choice-group" : undefined} key={group}>
+              {group && <h3>{group}</h3>}
+              <ul className="choice-list">
+                {items.map((option) => (
+                  <li key={option.value}>
+                    <button
+                      type="button"
+                      className="choice-option"
+                      aria-pressed={option.value === value}
+                      onClick={() => {
+                        close();
+                        onChange(option.value);
+                      }}
+                    >
+                      {option.icon}
+                      <span className="choice-option-text">
+                        <strong>{option.title}</strong>
+                      {option.description && (
+                        <span>{option.description}</span>
+                      )}
+                      </span>
+                      {option.value === value && (
+                        <span className="choice-check" aria-hidden="true">
+                          ✓
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </PickerDialog>
       )}
     </>

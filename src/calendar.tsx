@@ -23,6 +23,13 @@ import { Notice } from "./ui";
 import { reportPath } from "./reports";
 import { ChoicePicker, TimeField } from "./pickers";
 import {
+  initialShiftCycle,
+  planMonthlyCopies,
+  planShiftCycle,
+  ShiftCycleEditor,
+  type ShiftCycle,
+} from "./shift-cycle";
+import {
   calendarPath,
   dateLabel,
   dateString,
@@ -110,12 +117,12 @@ export function CalendarLayout() {
       <main className="page workspace-page calendar-page">
         <h1>Календарь смен</h1>
         <Empty>
-          <p>Нет доступных ПВЗ</p>
+          <p>Нет доступных точек</p>
           <p className="hint">
             Создайте точку или дождитесь, когда вас добавят в существующую.
           </p>
           <Link to="/workplaces" className="primary button-link">
-            Открыть ПВЗ
+            Открыть список точек
           </Link>
         </Empty>
       </main>
@@ -134,7 +141,7 @@ export function CalendarLayout() {
         ) : (
           <>
             <Notice
-              text="Выберите доступный ПВЗ. В ссылке на этот раздел должна быть указана рабочая точка."
+              text="Выберите рабочую точку, чтобы открыть раздел календаря."
               error
             />
             <Link to="/calendar">Открыть календарь</Link>
@@ -172,7 +179,7 @@ export function CalendarLayout() {
           aria-hidden={!root || undefined}
           inert={!root}
         >
-          <h1 className="sr-only">Календарь смен</h1>
+          <h1 className="sr-only calendar-title">Календарь смен</h1>
           <PointHeader
             points={points.data.items}
             point={point}
@@ -202,7 +209,7 @@ function InvalidCalendar() {
   return (
     <>
       <h1>Некорректный адрес календаря</h1>
-      <Notice text="Проверьте дату, номер смены и выбранный ПВЗ." error />
+      <Notice text="Проверьте дату, номер смены и выбранную точку." error />
       <Link to="/calendar">Вернуться к календарю</Link>
     </>
   );
@@ -283,7 +290,7 @@ export function CalendarMonth({
       <LoadState {...calendar} />
       {calendar.data && (
         <>
-          <div ref={grid}>
+          <div className="calendar-month-grid" ref={grid}>
             <MonthGrid
               month={month}
               workplace={point.id}
@@ -475,7 +482,7 @@ function DayContent({ date }: { date: string }) {
           }
           description={
             removal === "day"
-              ? `${point.name}, ${dateLabel(date)}. Будут удалены все смены всех сотрудников этого ПВЗ за выбранный день.`
+              ? `${point.name}, ${dateLabel(date)}. Будут удалены все смены всех сотрудников этой точки за выбранный день.`
               : removal.description
           }
           busy={action.busy}
@@ -526,7 +533,7 @@ function ShiftEditorContent({
     return (
       <CalendarSheet title={dayTitle(date)} closeTo={dayPath(point.id, date)}>
         <Notice
-          text="Изменять расписание может только владелец или администратор этого ПВЗ."
+          text="Изменять расписание может только владелец или администратор этой точки."
           error
         />
       </CalendarSheet>
@@ -594,25 +601,24 @@ function ShiftForm({
       (!selectedEmployee ||
         !employees.some((item) => item.id === selectedEmployee))
     ) {
-      action.setError("Выберите активного сотрудника этого ПВЗ.");
+      action.setError("Выберите активного сотрудника этой точки.");
       return;
     }
-    void action.run(
-      () =>
-        shift
-          ? api.shifts.update(point.id, shift.id, {
-              start_time: startTime,
-              end_time: endTime,
-            })
-          : api.shifts.create(point.id, {
-              employee_id: selectedEmployee!,
-              date,
-              start_time: startTime,
-              end_time: endTime,
-              notes: notes.trim() || null,
-            }),
-      () => done(shift ? "Изменения смены сохранены." : "Смена создана."),
-    );
+    void action.run(async () => {
+      const times = { start_time: startTime, end_time: endTime };
+      if (shift) {
+        await api.shifts.update(point.id, shift.id, times);
+        return "Изменения смены сохранены.";
+      }
+
+      await api.shifts.create(point.id, {
+        ...times,
+        date,
+        employee_id: selectedEmployee!,
+        notes: notes.trim() || null,
+      });
+      return "Смена создана.";
+    }, done);
   }
   function remove() {
     if (!shift) return;
@@ -641,7 +647,7 @@ function ShiftForm({
         </details>
         {!shift && !employees.length ? (
           <Empty>
-            <p>В этом ПВЗ пока нет активных сотрудников.</p>
+            <p>В этой точке пока нет активных сотрудников.</p>
             <Link to={`/employees?workplace=${point.id}`}>
               Открыть сотрудников
             </Link>
@@ -767,7 +773,7 @@ function DuplicateContent({ date }: { date: string }) {
         closeTo={dayPath(point.id, date)}
       >
         <Notice
-          text="Копировать расписание может только владелец или администратор этого ПВЗ."
+          text="Копировать расписание может только владелец или администратор этой точки."
           error
         />
       </CalendarSheet>
@@ -797,22 +803,32 @@ function DuplicateContent({ date }: { date: string }) {
     );
   return <DuplicateForm date={date} shifts={resource.data} />;
 }
+
 function DuplicateForm({ date, shifts }: { date: string; shifts: Shift[] }) {
   const { point, refreshCalendar } = useCalendar();
   const navigate = useNavigate();
   const action = useMutation();
   const formId = useId();
   const [ids, setIds] = useState(shifts.map((shift) => shift.id)),
-    [dates, setDates] = useState<string[]>([]),
+    [manualDates, setManualDates] = useState<string[]>([]),
     [month, setMonth] = useState(date.slice(0, 7));
+  const [cycle, setCycle] = useState<ShiftCycle>(initialShiftCycle);
+  const repeating = cycle.mode !== "manual";
+  const plan = planShiftCycle(cycle, date, month);
+  const dates = repeating ? plan.dates : manualDates;
   const bounds = monthBounds(month);
   const calendar = useResource(`copy-calendar-${point.id}-${month}`, () =>
     api.shifts.calendar(point.id, bounds.from, bounds.to),
   );
   const sources = shifts.filter((shift) => ids.includes(shift.id));
+  const monthlyCopies =
+    repeating && calendar.data
+      ? planMonthlyCopies(dates, sources, calendar.data)
+      : null;
+  const previewUnavailable = calendar.loading || !!calendar.error;
   function toggleDate(value: string) {
-    if (value !== date)
-      setDates((current) =>
+    if (!repeating && value !== date)
+      setManualDates((current) =>
         current.includes(value)
           ? current.filter((item) => item !== value)
           : [...current, value].sort(),
@@ -820,25 +836,58 @@ function DuplicateForm({ date, shifts }: { date: string; shifts: Shift[] }) {
   }
   function copy(event: FormEvent) {
     event.preventDefault();
-    if (calendar.loading || calendar.error) return;
+    if (previewUnavailable || (repeating && plan.error)) return;
     if (!ids.length || !dates.length) {
       action.setError("Выберите хотя бы одну смену и одну дату копирования.");
       return;
     }
-    const shiftIds = [...new Set(ids)],
-      targetDates = [...new Set(dates)].sort();
+    const targetDates = [...new Set(dates)].sort();
     void action.run(
-      () =>
-        api.shifts.duplicate(point.id, {
-          shift_ids: shiftIds,
-          dates: targetDates,
-        }),
-      (result) => {
+      async () => {
+        if (!repeating) {
+          const result = await api.shifts.duplicate(point.id, {
+            shift_ids: [...new Set(ids)],
+            dates: targetDates,
+          });
+          return { created: result.count_duplicated_shifts_created, skipped: 0 };
+        }
+
+        const latest = await api.shifts.calendar(
+          point.id,
+          bounds.from,
+          bounds.to,
+        );
+        const { batches, count } = planMonthlyCopies(targetDates, sources, latest);
+        let created = 0;
+        try {
+          for (const batch of batches) {
+            const result = await api.shifts.duplicate(point.id, batch);
+            created += result.count_duplicated_shifts_created;
+          }
+        } catch (error) {
+          refreshCalendar();
+          calendar.retry();
+          if (!created) throw error;
+          const detail =
+            error instanceof Error ? error.message : "Ошибка копирования.";
+          throw new Error(
+            `Сохранено смен: ${created}. ${detail} Повторное сохранение добавит недостающие смены.`,
+          );
+        }
+        return {
+          created,
+          skipped: targetDates.length * sources.length - count,
+        };
+      },
+      ({ created, skipped }) => {
         refreshCalendar();
+        const skippedMessage = skipped
+          ? ` Совпадающих смен пропущено: ${skipped}.`
+          : "";
         navigate(calendarPath(point.id, targetDates[0].slice(0, 7)), {
           replace: true,
           state: {
-            message: `Создано копий смен: ${result.count_duplicated_shifts_created}.`,
+            message: `Создано копий смен: ${created}.${skippedMessage}`,
           },
         });
       },
@@ -854,7 +903,7 @@ function DuplicateForm({ date, shifts }: { date: string; shifts: Shift[] }) {
         <>
           <p className="copy-summary" role="status">
             Смен: {ids.length} · Дат: {dates.length} · Новых смен:{" "}
-            {ids.length * dates.length}
+            {repeating ? monthlyCopies?.count ?? "…" : ids.length * dates.length}
           </p>
           <Notice text={action.error} error />
           <button
@@ -862,7 +911,9 @@ function DuplicateForm({ date, shifts }: { date: string; shifts: Shift[] }) {
             form={formId}
             className="primary"
             aria-label="Сохранить копии смен"
-            disabled={action.busy || calendar.loading || !!calendar.error}
+            disabled={
+              action.busy || previewUnavailable || (repeating && !!plan.error)
+            }
           >
             {action.busy ? "Копируем…" : "Сохранить"}
           </button>
@@ -873,7 +924,7 @@ function DuplicateForm({ date, shifts }: { date: string; shifts: Shift[] }) {
         <fieldset disabled={action.busy}>
           <p className="sr-only">
             Нажмите смены на шкале времени, которые нужно скопировать. Затем
-            выберите даты в календаре.
+            выберите даты в календаре или заполните их по графику.
           </p>
           <details className="copy-sources" open={shifts.length <= 3}>
             <summary>Исходные смены · {ids.length} из {shifts.length}</summary>
@@ -891,6 +942,13 @@ function DuplicateForm({ date, shifts }: { date: string; shifts: Shift[] }) {
               busy={action.busy}
             />
           </details>
+          <ShiftCycleEditor
+            value={cycle}
+            plan={plan}
+            sourceDate={date}
+            month={month}
+            onChange={setCycle}
+          />
           <MonthNavigation
             month={month}
             change={setMonth}
@@ -906,18 +964,23 @@ function DuplicateForm({ date, shifts }: { date: string; shifts: Shift[] }) {
               selected={dates}
               toggle={toggleDate}
               excluded={date}
-              busy={action.busy}
+              busy={action.busy || repeating}
               content={(value) => {
-                const existing = calendar.data![value] || [],
-                  preview = dates.includes(value) ? sources : [];
+                const existing = calendar.data![value] || [];
+                const planned = dates.includes(value) ? sources : [];
+                const preview = repeating
+                  ? (monthlyCopies?.copies.get(value) ?? [])
+                  : planned;
+                const matching = planned.length - preview.length;
                 return {
-                  label: `${shiftsLabel(existing)}${preview.length ? `; будет добавлено: ${preview.length}` : ""}`,
-                  visual: (
-                    <ShiftPreview
-                      shifts={existing}
-                      copies={preview}
-                    />
-                  ),
+                  label: [
+                    shiftsLabel(existing),
+                    preview.length ? `Будет добавлено: ${preview.length}` : "",
+                    matching ? `Совпадают с существующими: ${matching}` : "",
+                  ]
+                    .filter(Boolean)
+                    .join(". "),
+                  visual: <ShiftPreview shifts={existing} copies={preview} />,
                 };
               }}
             />
@@ -936,11 +999,12 @@ function DuplicateForm({ date, shifts }: { date: string; shifts: Shift[] }) {
               />
               Выбрать все
             </label>
-            <p className="hint">
-              Существующие смены сохранятся. Проверьте, чтобы новые смены не
-              пересекались с ними. Исходный день исключён из выбора.
-            </p>
-            {dates.length > 0 && (
+            {!repeating && (
+              <p className="hint">
+                Проверьте время смен на выбранных датах перед копированием.
+              </p>
+            )}
+            {!repeating && dates.length > 0 && (
               <ul className="copy-date-list" aria-label="Выбранные даты">
                 {dates.map((value) => (
                   <li key={value}>

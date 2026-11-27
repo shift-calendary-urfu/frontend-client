@@ -55,7 +55,7 @@ async function loginAndOpenSettings(page: Page) {
   await page.getByRole("button", { name: "Войти", exact: true }).click();
   await expect(page).toHaveURL("/workplaces");
   await expect(
-    page.getByRole("heading", { name: "Список ПВЗ", exact: true }),
+    page.getByRole("heading", { name: "Рабочие точки", exact: true }),
   ).toBeVisible();
   await page
     .getByRole("navigation")

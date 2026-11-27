@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { api, type Employee, type Workplace, type WorkplaceInput } from "./api";
 import { Field, Notice, Icon, AddMark } from "./ui";
-import { TimeField } from "./pickers";
+import { ChoicePicker, TimeField } from "./pickers";
 import { timeLabel } from "./calendar-utils";
 import { reportPath } from "./reports";
 import {
@@ -15,13 +15,12 @@ import {
   DeleteDialog,
 } from "./management-ui";
 import { EmployeeRows, AddEmployeeLink, canManageEmployees } from "./employees";
+import { workplaceTypeName, workplaceTypes } from "./workplace-types";
 
-const marketplaces: Record<string, string> = {
-  ozon: "Ozon",
-  wildberries: "Wildberries",
-  yandex_market: "Яндекс Маркет",
-  other: "Другой",
-};
+const typeOptions = workplaceTypes.map((type) => ({
+  ...type,
+  icon: <MarketBadge type={type.value} />,
+}));
 function workHours(point: Workplace) {
   return `${timeLabel(point.work_start_time)}–${timeLabel(point.work_end_time)}`;
 }
@@ -32,15 +31,16 @@ export function Workplaces() {
     return { items, me };
   });
   return (
-    <main className="page workspace-page">
+    <main className="page workspace-page workplaces-page">
       <header className="page-heading">
-        <h1>Список ПВЗ</h1>
+        <h1>Рабочие точки</h1>
         <Link
           className="add-button"
           to="/workplaces/new"
-          aria-label="Добавить ПВЗ"
+          aria-label="Добавить точку"
         >
           <AddMark />
+          <span className="workplace-add-label">Добавить точку</span>
         </Link>
       </header>
       <Notice
@@ -54,50 +54,70 @@ export function Workplaces() {
       {resource.data &&
         (resource.data.items.length ? (
           <ul className="workplace-list">
-            {resource.data.items.map((point) => (
-              <li key={point.id}>
-                <Link
-                  className="workplace-link"
-                  to={`/workplaces/${point.id}`}
-                  aria-label={`Открыть ПВЗ ${point.name}${point.address ? `: ${point.address}` : ""}`}
+            {resource.data.items.map((point) => {
+              const editable = point.owner_id === resource.data!.me.id;
+              return (
+                <li
+                  key={point.id}
+                  className={editable ? "workplace-card-editable" : undefined}
                 >
-                  <MarketBadge type={point.workplace_type} />
-                  <span className="workplace-card-text">
-                    <strong className="workplace-name">{point.name}</strong>
-                    {point.address && (
-                      <span className="workplace-address">{point.address}</span>
-                    )}
-                    <span className="workplace-hours">{workHours(point)}</span>
-                  </span>
-                </Link>
-                <button
-                  className="favorite-button unavailable"
-                  disabled
-                  aria-label="Избранное пока недоступно"
-                >
-                  <Icon name="star" />
-                </button>
-                {point.owner_id === resource.data!.me.id && (
                   <Link
-                    className="edit-button"
-                    to={`/workplaces/${point.id}/edit`}
-                    aria-label={`Редактировать ПВЗ ${point.name}`}
+                    className="workplace-link"
+                    to={`/workplaces/${point.id}`}
+                    aria-label={`Открыть точку ${point.name}${point.address ? `: ${point.address}` : ""}`}
                   >
-                    <EditIcon />
+                    <MarketBadge type={point.workplace_type} />
+                    <span className="workplace-card-text">
+                      <span className="workplace-card-heading">
+                        <strong className="workplace-name" title={point.name}>
+                          {point.name}
+                        </strong>
+                        {point.address && (
+                          <span
+                            className="workplace-address"
+                            title={point.address}
+                          >
+                            {point.address}
+                          </span>
+                        )}
+                      </span>
+                      <span className="workplace-meta">
+                        <span>{workplaceTypeName(point.workplace_type)}</span>
+                        <span className="workplace-hours">
+                          {workHours(point)}
+                        </span>
+                      </span>
+                    </span>
                   </Link>
-                )}
-              </li>
-            ))}
+                  <button
+                    className="favorite-button unavailable"
+                    disabled
+                    aria-label="Избранное пока недоступно"
+                  >
+                    <Icon name="star" />
+                  </button>
+                  {editable && (
+                    <Link
+                      className="edit-button"
+                      to={`/workplaces/${point.id}/edit`}
+                      aria-label={`Редактировать точку ${point.name}`}
+                    >
+                      <EditIcon />
+                    </Link>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         ) : (
           <Empty>
-            <p>У вас пока нет ПВЗ</p>
+            <p>У вас пока нет рабочих точек</p>
             <p className="hint">
               Создайте первую точку или дождитесь, когда вас добавят в
               существующую.
             </p>
             <Link to="/workplaces/new" className="primary button-link">
-              Добавить ПВЗ
+              Добавить точку
             </Link>
           </Empty>
         ))}
@@ -118,7 +138,7 @@ function InvalidWorkplace() {
       <Link className="back" to="/workplaces">
         Назад
       </Link>
-      <h1>ПВЗ не найден</h1>
+      <h1>Точка не найдена</h1>
       <p>Проверьте адрес страницы или выберите точку из списка.</p>
     </main>
   );
@@ -135,11 +155,11 @@ function WorkplaceDetailContent({ id }: { id: number }) {
     !!resource.data &&
     canManageEmployees(point, resource.data.me.id, point.employees);
   return (
-    <main className="page workspace-page">
+    <main className="page workspace-page workplace-detail-page">
       <Link className="back" to="/workplaces">
         Назад
       </Link>
-      <h1>{point?.name || "ПВЗ"}</h1>
+      <h1>{point?.name || "Рабочая точка"}</h1>
       <Notice
         text={
           typeof location.state?.message === "string"
@@ -152,9 +172,7 @@ function WorkplaceDetailContent({ id }: { id: number }) {
         <>
           <div className="detail-market">
             <MarketBadge type={point.workplace_type} />
-            <span>
-              {marketplaces[point.workplace_type] || point.workplace_type}
-            </span>
+            <span>{workplaceTypeName(point.workplace_type)}</span>
           </div>
           <dl className="detail-list">
             <div>
@@ -193,7 +211,7 @@ function WorkplaceDetailContent({ id }: { id: number }) {
           )}
           {point.owner_id === resource.data?.me.id && (
             <Link className="primary button-link" to={`/workplaces/${id}/edit`}>
-              Редактировать ПВЗ
+              Редактировать точку
             </Link>
           )}
           <section className="employee-section">
@@ -223,7 +241,7 @@ const initial: WorkplaceInput = {
   address: "",
   phone: "",
   description: "",
-  workplace_type: "ozon",
+  workplace_type: "other",
   work_start_time: "09:00",
   work_end_time: "21:00",
 };
@@ -247,7 +265,7 @@ function EditWorkplace({ id }: { id: number }) {
           <Link className="back" to={`/workplaces/${id}`}>
             Назад
           </Link>
-          <h1>Редактирование ПВЗ</h1>
+          <h1>Редактирование точки</h1>
           <Notice text="Изменять эту точку может только её владелец." error />
         </main>
       );
@@ -263,7 +281,7 @@ function EditWorkplace({ id }: { id: number }) {
       <Link className="back" to="/workplaces">
         Назад
       </Link>
-      <h1>Редактировать ПВЗ</h1>
+      <h1>Редактировать точку</h1>
       <LoadState {...resource} />
     </main>
   );
@@ -297,6 +315,16 @@ function WorkplaceForm({
   );
   const navigate = useNavigate();
   const fail = useSessionError();
+  const options = typeOptions.some((type) => type.value === data.workplace_type)
+    ? typeOptions
+    : [
+        {
+          value: data.workplace_type,
+          title: workplaceTypeName(data.workplace_type),
+          icon: <MarketBadge type={data.workplace_type} />,
+        },
+        ...typeOptions,
+      ];
   const set = (name: keyof WorkplaceInput) => (value: string) =>
     setData((current) => ({ ...current, [name]: value }));
   async function save(event: FormEvent) {
@@ -304,11 +332,11 @@ function WorkplaceForm({
     if (busy) return;
     setError("");
     if (!data.name.trim()) {
-      setError("Укажите название ПВЗ.");
+      setError("Укажите название точки.");
       return;
     }
     if (!data.address?.trim()) {
-      setError("Укажите адрес ПВЗ.");
+      setError("Укажите адрес точки.");
       return;
     }
     if (data.work_end_time <= data.work_start_time) {
@@ -328,7 +356,7 @@ function WorkplaceForm({
       else await api.workplaces.create(payload);
       navigate("/workplaces", {
         replace: true,
-        state: { message: point ? "Изменения ПВЗ сохранены." : "ПВЗ создан." },
+        state: { message: point ? "Изменения точки сохранены." : "Точка создана." },
       });
     } catch (error) {
       setError(fail(error));
@@ -344,7 +372,7 @@ function WorkplaceForm({
       await api.workplaces.remove(point.id);
       navigate("/workplaces", {
         replace: true,
-        state: { message: "ПВЗ удалён." },
+        state: { message: "Точка удалена." },
       });
     } catch (error) {
       setConfirm(false);
@@ -361,7 +389,7 @@ function WorkplaceForm({
       >
         Назад
       </Link>
-      <h1>{point ? "Редактировать" : "Добавить ПВЗ"}</h1>
+      <h1>{point ? "Редактировать" : "Добавить точку"}</h1>
       <Notice
         text={
           typeof location.state?.message === "string"
@@ -373,7 +401,7 @@ function WorkplaceForm({
         <fieldset disabled={busy}>
           <div className="fields">
             <Field
-              label="Название ПВЗ"
+              label="Название точки"
               name="name"
               value={data.name}
               onChange={set("name")}
@@ -389,8 +417,17 @@ function WorkplaceForm({
               placeholder=""
             />
           </div>
+          <div className="workplace-type-field">
+            <ChoicePicker
+              title="Тип рабочей точки"
+              variant="workplace-type"
+              value={data.workplace_type}
+              onChange={set("workplace_type")}
+              options={options}
+            />
+          </div>
           <section className="hours-section">
-            <h2>Часы работы ПВЗ</h2>
+            <h2>Часы работы</h2>
             <div className="time-fields">
               <TimeField
                 label="Начало работы"
@@ -408,28 +445,6 @@ function WorkplaceForm({
               />
             </div>
           </section>
-          <fieldset className="market-options">
-            <legend>Маркетплейсы</legend>
-            {Object.entries(marketplaces).map(([value, label]) => (
-              <label key={value} title={label}>
-                <MarketBadge type={value} />
-                <input
-                  type="radio"
-                  name="workplace_type"
-                  value={value}
-                  checked={data.workplace_type === value}
-                  onChange={() => set("workplace_type")(value)}
-                />
-                <span className="sr-only">{label}</span>
-              </label>
-            ))}
-            {!marketplaces[data.workplace_type] && (
-              <label>
-                <input type="radio" name="workplace_type" checked readOnly />
-                <span>{data.workplace_type}</span>
-              </label>
-            )}
-          </fieldset>
           <details
             className="extra-details"
             open={extraOpen}
@@ -490,7 +505,7 @@ function WorkplaceForm({
                 }}
                 disabled={busy}
               >
-                Удалить ПВЗ
+                Удалить точку
               </button>
             )}
           </div>
@@ -498,8 +513,8 @@ function WorkplaceForm({
       </form>
       {confirm && point && (
         <DeleteDialog
-          title="Вы уверены, что хотите удалить ПВЗ?"
-          description={`ПВЗ «${point.name}», связанные сотрудники и смены перестанут отображаться. Отменить удаление в приложении нельзя.`}
+          title="Вы уверены, что хотите удалить рабочую точку?"
+          description={`Рабочая точка «${point.name}», связанные сотрудники и смены перестанут отображаться. Отменить удаление в приложении нельзя.`}
           busy={busy}
           cancel={() => {
             if (!busy) setConfirm(false);

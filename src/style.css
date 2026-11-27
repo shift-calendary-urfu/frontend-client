@@ -465,6 +465,14 @@ fieldset {
 .workplace-hours {
   font-variant-numeric: tabular-nums;
 }
+.workplace-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+  color: #515866;
+  font-size: 13px;
+}
 .workplace-address {
   font-size: 17px;
   line-height: 22px;
@@ -481,9 +489,27 @@ fieldset {
   border-radius: 8px;
 }
 .market-other {
-  background: var(--field);
-  font-size: 12px;
-  color: #73737a;
+  position: relative;
+  background: #eef3f8;
+  color: #45576e;
+}
+.market-other::before {
+  content: "";
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid currentColor;
+  border-radius: 50% 50% 50% 0;
+  transform: translateY(-1px) rotate(-45deg);
+}
+.market-other::after {
+  content: "";
+  position: absolute;
+  top: calc(50% - 3px);
+  left: calc(50% - 2px);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
 }
 .edit-button,
 .favorite-button {
@@ -692,54 +718,8 @@ fieldset {
   letter-spacing: 0;
   margin: 0 0 3px;
 }
-.market-options {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 16px;
-  margin: 0;
-}
-.market-options legend {
-  font-size: 26px;
-  line-height: 31px;
-  font-weight: 700;
-  letter-spacing: -0.35px;
-  padding: 0;
-  margin-bottom: 14px;
-}
-.market-options label {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  min-height: 72px;
-  min-width: 0;
-  max-width: 100%;
-  overflow-wrap: anywhere;
-  cursor: pointer;
-}
-.market-options input {
-  appearance: none;
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  border: 1px solid var(--blue);
-  border-radius: 0;
-  position: relative;
-}
-.market-options input:checked {
-  background: var(--blue);
-}
-.market-options input:checked::after {
-  content: "";
-  position: absolute;
-  width: 7px;
-  height: 4px;
-  border-left: 1.5px solid white;
-  border-bottom: 1.5px solid white;
-  transform: rotate(-45deg);
-  left: 3px;
-  top: 4px;
+.workplace-type-field {
+  margin-top: 16px;
 }
 .extra-details {
   margin: 14px 0 0;
@@ -877,6 +857,26 @@ fieldset {
 .employee-picker > span:first-child {
   overflow-wrap: anywhere;
 }
+.market-picker {
+  width: 100%;
+  text-align: start;
+}
+.market-picker .picker-trigger-title {
+  display: grid;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.market-picker-label {
+  color: #515866;
+  font-size: 13px;
+}
+.market-picker .market-badge {
+  width: 32px;
+  height: 32px;
+  flex-basis: 32px;
+}
 .picker-chevron {
   flex: 0 0 7px;
   height: 7px;
@@ -940,6 +940,9 @@ fieldset {
   background: #fff;
   box-shadow: 0 -12px 36px #15213722;
 }
+.picker-dialog-compact .picker-panel {
+  max-height: min(100%, 78dvh, 34rem);
+}
 .picker-heading {
   display: flex;
   align-items: center;
@@ -970,6 +973,31 @@ fieldset {
   overscroll-behavior: contain;
   padding: 4px;
   margin: 0 -4px;
+}
+.choice-search {
+  position: sticky;
+  top: -4px;
+  z-index: 1;
+  padding: 4px 0 8px;
+  background: #fff;
+}
+.choice-search input {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid #bac4d2;
+  border-radius: 10px;
+  background: #f8fafc;
+  font: inherit;
+  font-size: 16px;
+}
+.choice-group + .choice-group {
+  margin-top: 12px;
+}
+.choice-group h3 {
+  margin: 4px 0 6px;
+  color: #515866;
+  font-size: 13px;
 }
 .choice-list {
   display: flex;
@@ -1313,7 +1341,7 @@ fieldset {
 .calendar-cell:disabled {
   cursor: default;
 }
-.calendar-cell:disabled .calendar-date {
+.calendar-cell:disabled:not(.calendar-selected) .calendar-date {
   color: #73737a;
 }
 .calendar-empty-hint {
@@ -1566,6 +1594,80 @@ fieldset {
   display: block;
   min-height: 38px;
   padding: 8px 0;
+}
+.shift-cycle {
+  margin-bottom: 8px;
+}
+.shift-cycle-panel {
+  padding: 10px;
+  border: 1px solid #dde4ed;
+  border-radius: 12px;
+  background: #fff;
+}
+.shift-cycle-patterns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.shift-cycle-patterns label {
+  cursor: pointer;
+}
+.shift-cycle-patterns label > span {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 5px 10px;
+  border: 1px solid #d0d8e3;
+  border-radius: 9px;
+  color: #124b83;
+}
+.shift-cycle-patterns input:checked + span {
+  border-color: #669cde;
+  background: #eaf3ff;
+  font-weight: 600;
+}
+.shift-cycle-patterns input:focus-visible + span {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+.shift-cycle-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
+  gap: 0 8px;
+}
+.shift-cycle-fields .field input {
+  padding: 6px 8px;
+  border: 1px solid #c0cbda;
+  background: #f8fafd;
+}
+.shift-cycle-panel > .hint {
+  margin: 8px 0 0;
+  font-size: 13px;
+}
+.shift-cycle-preview {
+  margin-top: 8px;
+}
+.shift-cycle-preview summary {
+  min-height: 38px;
+  padding-block: 8px;
+  color: var(--blue);
+  cursor: pointer;
+}
+.shift-cycle-dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-height: 120px;
+  overflow: auto;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.shift-cycle-dates li {
+  padding: 4px 7px;
+  border-radius: 5px;
+  background: #eef4fc;
+  color: #124b83;
 }
 .shift-notes {
   white-space: pre-wrap;

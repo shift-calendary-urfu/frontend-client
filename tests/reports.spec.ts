@@ -80,9 +80,9 @@ test("период и ПВЗ меняются в форме, пустой мес
     page.getByRole("button", { name: "Скачать Excel" }),
   ).toBeEnabled();
 
-  await page.getByRole("button", { name: /^Выбрать ПВЗ/ }).click();
+  await page.getByRole("button", { name: /^Выбрать точку/ }).click();
   await page
-    .getByRole("dialog", { name: "Выберите ПВЗ" })
+    .getByRole("dialog", { name: "Выберите точку" })
     .getByRole("button", { name: /Центральная/ })
     .click();
   await expect(page).toHaveURL("/reports/monthly?workplace=12");

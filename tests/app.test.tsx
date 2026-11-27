@@ -70,7 +70,7 @@ async function loginAndOpenSettings() {
   await user.type(screen.getByLabelText("Email"), profile.email);
   await user.type(screen.getByLabelText("Пароль"), "Password123");
   await user.click(screen.getByRole("button", { name: "Войти", exact: true }));
-  await screen.findByRole("heading", { name: "Список ПВЗ" });
+  await screen.findByRole("heading", { name: "Рабочие точки" });
   await user.click(
     within(screen.getByRole("navigation")).getByRole("link", {
       name: "Настройки",
@@ -87,11 +87,11 @@ test("settings защищены, вход передаёт form-urlencoded и о
   await user.type(screen.getByLabelText("Email"), profile.email);
   await user.type(screen.getByLabelText("Пароль"), "Password123");
   await user.click(screen.getByRole("button", { name: "Войти", exact: true }));
-  await screen.findByRole("heading", { name: "Список ПВЗ" });
+  await screen.findByRole("heading", { name: "Рабочие точки" });
   const nav = within(screen.getByRole("navigation"));
   expect(
     nav
-      .getByRole("link", { name: "ПВЗ", exact: true })
+      .getByRole("link", { name: "Точки", exact: true })
       .getAttribute("aria-current"),
   ).toBe("page");
   expect(screen.queryByRole("heading", { name: "Настройки" })).toBeNull();

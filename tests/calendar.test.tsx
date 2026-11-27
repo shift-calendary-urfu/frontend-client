@@ -157,9 +157,9 @@ test("права администратора одной точки не пер�
   fixture.state.points[1].owner_id = 99;
   const user = start();
   await screen.findByRole("group", { name: "Дни месяца" });
-  await user.click(screen.getByRole("button", { name: /^Выбрать ПВЗ/ }));
+  await user.click(screen.getByRole("button", { name: /^Выбрать точку/ }));
   await user.click(
-    within(screen.getByRole("dialog", { name: "Выберите ПВЗ" })).getByRole(
+    within(screen.getByRole("dialog", { name: "Выберите точку" })).getByRole(
       "button",
       { name: /Центральная/ },
     ),
@@ -246,7 +246,7 @@ test("форма требует выбрать сотрудника перед �
   const user = start("/calendar/2026-10-23/shift/add?workplace=11");
   await user.click(await screen.findByRole("button", { name: "Сохранить" }));
   expect(screen.getByRole("alert").textContent).toBe(
-    "Выберите активного сотрудника этого ПВЗ.",
+    "Выберите активного сотрудника этой точки.",
   );
   expect(writes()).toHaveLength(0);
 });
@@ -383,7 +383,7 @@ test("удаление дня использует один DELETE с датой
     await screen.findByRole("button", { name: "Удалить смены дня" }),
   );
   expect(screen.getByRole("alertdialog").textContent).toContain(
-    "все смены всех сотрудников этого ПВЗ",
+    "все смены всех сотрудников этой точки",
   );
   await user.click(
     within(screen.getByRole("alertdialog")).getByRole("button", {
@@ -447,10 +447,9 @@ test("календарь показывает имена цветными бло
     name: /^23 октября 2026.*смен: 2/,
   });
   const chips = day.querySelectorAll(".calendar-chip");
-  expect(Array.from(chips).map((node) => node.textContent)).toEqual([
-    "Пётр",
-    "Анна",
-  ]);
+  expect(
+    Array.from(chips, (chip) => chip.querySelector(".calendar-chip-name")?.textContent),
+  ).toEqual(["Пётр", "Анна"]);
   expect(chips[0].classList.contains("calendar-color-0")).toBe(true);
   expect(chips[1].classList.contains("calendar-color-1")).toBe(true);
   await user.click(day);

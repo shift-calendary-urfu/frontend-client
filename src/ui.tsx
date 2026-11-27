@@ -103,16 +103,25 @@ export function LegalLinks({ policyOnly = false }: { policyOnly?: boolean }) {
     </div>
   );
 }
-export function BottomNav() {
+export function AppNavigation({ inactive = false }: { inactive?: boolean }) {
   const entries = [
-    { label: "ПВЗ", icon: "home", to: "/workplaces" },
+    { label: "Точки", icon: "home", to: "/workplaces" },
     { label: "Сотрудники", icon: "people", to: "/employees" },
     { label: "Календарь", icon: "calendar", to: "/calendar" },
     { label: "Чаты", icon: "chat", to: "/chats" },
     { label: "Настройки", icon: "settings", to: "/settings" },
   ];
   return (
-    <nav className="bottom-nav" aria-label="Разделы приложения">
+    <nav
+      className="bottom-nav"
+      aria-label="Разделы приложения"
+      aria-hidden={inactive || undefined}
+      inert={inactive}
+    >
+      <div className="navigation-brand" aria-hidden="true">
+        <span className="navigation-brand-icon"><Icon name="calendar" /></span>
+        <span>Календарь смен</span>
+      </div>
       {entries.map((item) => (
         <NavLink key={item.icon} to={item.to}>
           <Icon name={item.icon} />

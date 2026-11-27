@@ -157,15 +157,15 @@ const labels: Record<string, string> = {
   password: "Пароль",
   old_password: "Текущий пароль",
   new_password: "Новый пароль",
-  name: "Название ПВЗ",
+  name: "Название точки",
   address: "Адрес",
   description: "Описание",
-  workplace_type: "Маркетплейс",
+  workplace_type: "Тип рабочей точки",
   work_start_time: "Начало работы",
   work_end_time: "Конец работы",
   role: "Уровень доступа",
   position: "Должность",
-  workplace_id: "ПВЗ",
+  workplace_id: "Рабочая точка",
   employee_id: "Сотрудник",
   date: "Дата смены",
   start_time: "Начало смены",
@@ -204,12 +204,12 @@ async function parse(response: Response) {
       response.status === 409 &&
       data?.detail === "Employee already exists in this workplace"
     )
-      message = "Этот сотрудник уже добавлен в выбранный ПВЗ.";
+      message = "Этот сотрудник уже добавлен в выбранную точку.";
     if (response.status === 404 && data?.detail === "Employee not found")
       message =
-        "Сотрудник не найден в этом ПВЗ или уже удалён. Обновите список сотрудников.";
+        "Сотрудник не найден в этой точке или уже удалён. Обновите список сотрудников.";
     if (data?.detail === "Workplace with this address and type already exists.")
-      message = "ПВЗ с таким адресом и маркетплейсом уже существует.";
+      message = "Точка с таким адресом и типом уже существует.";
     if (data?.detail === "Current password is not matching.")
       message = "Текущий пароль указан неверно.";
     if (response.status === 401) message = "Сессия истекла. Войдите снова.";

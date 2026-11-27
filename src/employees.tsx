@@ -231,16 +231,16 @@ export function Employees() {
               </>
             ) : (
               <Notice
-                text="Эта точка недоступна. Выберите ПВЗ из списка."
+                text="Эта точка недоступна. Выберите точку из списка."
                 error
               />
             )}
           </>
         ) : (
           <Empty>
-            <p>Нет доступных ПВЗ</p>
+            <p>Нет доступных точек</p>
             <Link className="primary button-link" to="/workplaces/new">
-              Добавить ПВЗ
+              Добавить точку
             </Link>
           </Empty>
         ))}
@@ -324,7 +324,7 @@ function EmployeeEditorContent({
         </Link>
         <h1>Сотрудники</h1>
         <Notice
-          text="Управлять сотрудниками может только владелец или администратор этого ПВЗ."
+          text="Управлять сотрудниками может только владелец или администратор этой точки."
           error
         />
       </main>
@@ -343,7 +343,7 @@ function EmployeeEditorContent({
           Назад
         </Link>
         <h1>Сотрудник не найден</h1>
-        <Notice text="Сотрудник не найден в этом ПВЗ или уже удалён." error />
+        <Notice text="Сотрудник не найден в этой точке или уже удалён." error />
       </main>
     );
   return <EmployeeForm point={point} me={me} employee={employee} from={from} />;
@@ -431,7 +431,7 @@ function EmployeeForm({
       if (mounted.current)
         navigate(selfRemoved ? "/employees" : back, {
           replace: true,
-          state: { message: "Сотрудник удалён из ПВЗ." },
+          state: { message: "Сотрудник удалён из рабочей точки." },
         });
     } catch (error) {
       handleError(error);
@@ -528,9 +528,9 @@ function EmployeeForm({
           </fieldset>
           <section
             className="employee-point"
-            aria-label="Пункт выдачи сотрудника"
+            aria-label="Рабочая точка сотрудника"
           >
-            <h2>Пункт выдачи</h2>
+            <h2>Рабочая точка</h2>
             <div className="workplace-link">
               <MarketBadge type={point.workplace_type} />
               <span className="workplace-address">
@@ -563,8 +563,8 @@ function EmployeeForm({
       </form>
       {confirm && employee && (
         <DeleteDialog
-          title="Удалить сотрудника из ПВЗ?"
-          description={`Сотрудник «${fullName(employee)}» будет удалён из ПВЗ «${point.name}». Его аккаунт сохранится. Позже сотрудника можно добавить в эту точку снова.`}
+          title="Удалить сотрудника из рабочей точки?"
+          description={`Сотрудник «${fullName(employee)}» будет удалён из рабочей точки «${point.name}». Его аккаунт сохранится. Позже сотрудника можно добавить в эту точку снова.`}
           busy={busy}
           cancel={() => {
             if (!busy) setConfirm(false);

@@ -71,7 +71,7 @@ export function MonthlyReports() {
       {points.data &&
         (points.data.items.length ? (
           <>
-            <section className="report-workplace" aria-label="ПВЗ для отчёта">
+            <section className="report-workplace" aria-label="Рабочая точка для отчёта">
               {point && (
                 <Link
                   to={`/workplaces/${point.id}`}
@@ -92,7 +92,7 @@ export function MonthlyReports() {
             </section>
             {!point ? (
               <Notice
-                text="Эта точка недоступна. Выберите ПВЗ из списка."
+                text="Эта точка недоступна. Выберите точку из списка."
                 error
               />
             ) : (
@@ -109,16 +109,16 @@ export function MonthlyReports() {
                       }
                     />
                   ) : (
-                    <Notice text="Отчёт по ПВЗ доступен владельцу и активному администратору этой точки." />
+                    <Notice text="Отчёт по точке доступен владельцу и активному администратору этой точки." />
                   ))}
               </>
             )}
           </>
         ) : (
           <Empty>
-            <p>Нет доступных ПВЗ</p>
+            <p>Нет доступных точек</p>
             <Link className="primary button-link" to="/workplaces">
-              Открыть ПВЗ
+              Открыть список точек
             </Link>
           </Empty>
         ))}
@@ -373,7 +373,7 @@ function ReportResult({
         </table>
       ) : (
         <p className="report-empty">
-          В этом ПВЗ пока нет сотрудников для отчёта.
+          В этой точке пока нет сотрудников для отчёта.
         </p>
       )}
       <details className="report-explanation">
@@ -383,7 +383,7 @@ function ReportResult({
           смены исключены.
         </p>
         <p>
-          Полная смена покрывает весь рабочий день ПВЗ — с{" "}
+          Полная смена покрывает весь рабочий день точки — с{" "}
           {timeLabel(point.work_start_time)} до {timeLabel(point.work_end_time)}
           . В часы входит вся длительность смены.
         </p>

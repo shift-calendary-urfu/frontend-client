@@ -154,7 +154,10 @@ export function ShiftPreview({
           className={`calendar-chip ${colorClass(shift.employee_id, employees)}${copy ? " calendar-copy-preview" : ""}`}
           title={`${shiftName(shift)}: ${timeLabel(shift.start_time)}–${timeLabel(shift.end_time)}`}
         >
-          {shift.first_name}
+          <span className="calendar-chip-name">{shift.first_name}</span>
+          <span className="calendar-chip-hours">
+            {timeLabel(shift.start_time)}–{timeLabel(shift.end_time)}
+          </span>
         </span>
       ))}
       {preview.length > limit && (
